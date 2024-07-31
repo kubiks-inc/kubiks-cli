@@ -95,6 +95,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.executing = true
 		m.currentCmd = msg.Cmd
 
+		// For interactive commands like Next.js dev server, we want live output
+		// Connect stdio directly to the terminal for real-time streaming
+		msg.Cmd.Stdin = os.Stdin
+		msg.Cmd.Stdout = os.Stdout
+		msg.Cmd.Stderr = os.Stderr
+
 		// Set up signal handling for the child process
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
@@ -102,39 +108,33 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Handle signals in a goroutine
 		go func() {
 			<-sigChan
+			fmt.Println("\n🛑 Stopping command...")
 			killProcessGroup(msg.Cmd)
 		}()
 
-		// For better error reporting, we'll capture output differently
+		// Run the command with live output
 		return m, func() tea.Msg {
-			// Set up pipes to capture both stdout and stderr
-			var output strings.Builder
-			var errOutput strings.Builder
+			// Start the command
+			err := msg.Cmd.Start()
+			if err != nil {
+				// Stop signal notifications
+				signal.Stop(sigChan)
+				close(sigChan)
+				return types.CommandExecutedMsg{
+					Output: "",
+					Err:    fmt.Errorf("failed to start command: %w", err),
+				}
+			}
 
-			msg.Cmd.Stdout = &output
-			msg.Cmd.Stderr = &errOutput
-
-			// Run the command
-			err := msg.Cmd.Run()
+			// Wait for the command to complete
+			err = msg.Cmd.Wait()
 
 			// Stop signal notifications
 			signal.Stop(sigChan)
 			close(sigChan)
 
-			// Combine outputs for display
-			var combinedOutput string
-			if output.Len() > 0 {
-				combinedOutput += output.String()
-			}
-			if errOutput.Len() > 0 {
-				if combinedOutput != "" {
-					combinedOutput += "\n"
-				}
-				combinedOutput += errOutput.String()
-			}
-
 			return types.CommandExecutedMsg{
-				Output: combinedOutput,
+				Output: "Command finished (output was shown above)",
 				Err:    err,
 			}
 		}

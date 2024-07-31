@@ -15,3 +15,9 @@ func configurePlatformSpecific(cmd *exec.Cmd) {
 		Pgid:    0,
 	}
 }
+
+// killProcessGroup kills the entire process group on Unix-like systems
+func killProcessGroup(pid int) error {
+	// Send SIGTERM to the entire process group
+	return syscall.Kill(-pid, syscall.SIGTERM)
+}

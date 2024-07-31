@@ -14,3 +14,17 @@ func configurePlatformSpecific(cmd *exec.Cmd) {
 		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,
 	}
 }
+
+// killProcessGroup kills the entire process group on Windows
+func killProcessGroup(pid int) error {
+	// On Windows, we need to send CTRL_BREAK_EVENT to the process group
+	dll := syscall.MustLoadDLL("kernel32.dll")
+	proc := dll.MustFindProc("GenerateConsoleCtrlEvent")
+
+	// CTRL_BREAK_EVENT = 1, pid = process group id
+	ret, _, err := proc.Call(uintptr(1), uintptr(pid))
+	if ret == 0 {
+		return err
+	}
+	return nil
+}

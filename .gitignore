@@ -51,6 +51,6 @@ tmp/
 temp/ 
 
 # Instrumentation build artifacts
-instrumentation/node_modules/
-instrumentation/dist/
-instrumentation/package-lock.json
+node_modules/
+dist/
+package-lock.json

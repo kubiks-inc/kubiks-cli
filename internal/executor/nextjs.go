@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
+	"syscall"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -84,6 +86,8 @@ func (e *NextJSExecutor) RunDirect() error {
 
 	fmt.Println("🚀 Starting Next.js development server with OpenTelemetry instrumentation...")
 	fmt.Printf("📊 Instrumentation file: %s\n", e.instrumentationPath)
+	fmt.Println("🔗 OTEL Endpoint: http://localhost:7432")
+	fmt.Println("📡 OTEL Protocol: http/json")
 
 	cmd, err := e.createCommand()
 	if err != nil {
@@ -95,8 +99,34 @@ func (e *NextJSExecutor) RunDirect() error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	// Run the command and wait for completion
-	return cmd.Run()
+	// Set up signal handling for graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	// Start the command
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start command: %w", err)
+	}
+
+	// Handle signals and command completion concurrently
+	go func() {
+		<-sigChan
+		fmt.Println("\n🛑 Shutting down Next.js development server...")
+
+		// Kill the entire process group to ensure all child processes are terminated
+		if err := killProcessGroup(cmd.Process.Pid); err != nil {
+			fmt.Printf("Warning: failed to kill process group: %v\n", err)
+		}
+	}()
+
+	// Wait for the command to complete
+	err = cmd.Wait()
+
+	// Stop listening for signals
+	signal.Stop(sigChan)
+	close(sigChan)
+
+	return err
 }
 
 // createCommand creates the exec.Cmd with proper NODE_OPTIONS
@@ -124,6 +154,10 @@ func (e *NextJSExecutor) createCommand() (*exec.Cmd, error) {
 	if !nodeOptionsSet {
 		env = append(env, "NODE_OPTIONS="+nodeOptions)
 	}
+
+	// Set OpenTelemetry environment variables
+	env = append(env, "OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:7432")
+	env = append(env, "OTEL_EXPORTER_OTLP_PROTOCOL=http/json")
 
 	cmd.Env = env
 
