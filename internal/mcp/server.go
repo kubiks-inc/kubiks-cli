@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/kubiks-inc/kubiks-cli/internal/database"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -54,17 +52,11 @@ func (s *KubiksMCP) Start(mux *http.ServeMux) error {
 		server.WithMessageEndpoint("/message"),
 	)
 
-	// Wrap handlers with CORS middleware
-	mux.Handle("/mcp/sse", s.corsMiddleware(sseServer.SSEHandler()))
-	mux.Handle("/mcp/message", s.corsMiddleware(sseServer.MessageHandler()))
-
-	// Add direct HTTP endpoints for simple tool calls
-	mux.Handle("/api/logs", s.corsMiddleware(http.HandlerFunc(s.httpGetLogs)))
-	mux.Handle("/api/traces", s.corsMiddleware(http.HandlerFunc(s.httpGetTraces)))
-	mux.Handle("/api/metrics", s.corsMiddleware(http.HandlerFunc(s.httpGetMetrics)))
+	// Register MCP handlers
+	mux.Handle("/mcp/sse", sseServer.SSEHandler())
+	mux.Handle("/mcp/message", sseServer.MessageHandler())
 
 	fmt.Printf("🔗 MCP server listening on http://localhost:%s/mcp/sse\n", s.port)
-	fmt.Printf("🔗 Direct API endpoints: /api/logs?servicename=<name>, /api/traces?servicename=<name>, /api/metrics?servicename=<name>\n")
 	return nil
 }
 
@@ -81,25 +73,16 @@ func (s *KubiksMCP) StartStandalone() (*http.Server, error) {
 		server.WithMessageEndpoint("/message"),
 	)
 
-	// Wrap handlers with CORS middleware
-	mux.Handle("/mcp/sse", s.corsMiddleware(sseServer.SSEHandler()))
-	mux.Handle("/mcp/message", s.corsMiddleware(sseServer.MessageHandler()))
-
-	// Add direct HTTP endpoints for simple tool calls
-	mux.Handle("/api/logs", s.corsMiddleware(http.HandlerFunc(s.httpGetLogs)))
-	mux.Handle("/api/traces", s.corsMiddleware(http.HandlerFunc(s.httpGetTraces)))
-	mux.Handle("/api/metrics", s.corsMiddleware(http.HandlerFunc(s.httpGetMetrics)))
+	// Register MCP handlers
+	mux.Handle("/mcp/sse", sseServer.SSEHandler())
+	mux.Handle("/mcp/message", sseServer.MessageHandler())
 
 	httpServer := &http.Server{
-		Addr:         ":" + s.port,
-		Handler:      mux,
-		ReadTimeout:  30 * time.Second,  // Increased for SSE connections
-		WriteTimeout: 30 * time.Second,  // Increased for SSE connections
-		IdleTimeout:  300 * time.Second, // Increased for long-lived SSE connections
+		Addr:    ":" + s.port,
+		Handler: mux,
 	}
 
 	fmt.Printf("🔗 MCP server listening on http://localhost:%s/mcp/sse\n", s.port)
-	fmt.Printf("🔗 Direct API endpoints: /api/logs?servicename=<name>, /api/traces?servicename=<name>, /api/metrics?servicename=<name>\n")
 	return httpServer, nil
 }
 
@@ -425,174 +408,6 @@ func (s *KubiksMCP) handleGetMetrics(ctx context.Context, request mcp.CallToolRe
 		}},
 		IsError: false,
 	}, nil
-}
-
-// corsMiddleware adds CORS headers for cross-origin requests
-func (s *KubiksMCP) corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Set CORS headers
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Cache-Control")
-		w.Header().Set("Access-Control-Expose-Headers", "Content-Type")
-
-		// Handle preflight OPTIONS request
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		// Set SSE-specific headers for /mcp/sse endpoint
-		if strings.HasSuffix(r.URL.Path, "/sse") {
-			w.Header().Set("Content-Type", "text/event-stream")
-			w.Header().Set("Cache-Control", "no-cache")
-			w.Header().Set("Connection", "keep-alive")
-			w.Header().Set("X-Accel-Buffering", "no") // Disable nginx buffering
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-// httpGetLogs handles GET /api/logs requests
-func (s *KubiksMCP) httpGetLogs(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	// Parse query parameters
-	limit := 10
-	offset := 0
-	serviceName := r.URL.Query().Get("servicename")
-
-	// servicename is required
-	if serviceName == "" {
-		http.Error(w, `{"error": "servicename parameter is required"}`, http.StatusBadRequest)
-		return
-	}
-
-	if l := r.URL.Query().Get("limit"); l != "" {
-		if parsedLimit, err := strconv.Atoi(l); err == nil {
-			limit = parsedLimit
-			if limit > 100 {
-				limit = 100
-			}
-		}
-	}
-
-	if o := r.URL.Query().Get("offset"); o != "" {
-		if parsedOffset, err := strconv.Atoi(o); err == nil {
-			offset = parsedOffset
-		}
-	}
-
-	logs, err := s.db.GetLogsPaginatedByService(serviceName, limit, offset)
-	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error": "Database error: %v"}`, err), http.StatusInternalServerError)
-		return
-	}
-
-	// Return logs as JSON array
-	w.Write([]byte("["))
-	for i, logEntry := range logs {
-		if i > 0 {
-			w.Write([]byte(","))
-		}
-		w.Write([]byte(logEntry.Data))
-	}
-	w.Write([]byte("]"))
-}
-
-// httpGetTraces handles GET /api/traces requests
-func (s *KubiksMCP) httpGetTraces(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	// Parse query parameters
-	limit := 10
-	offset := 0
-	serviceName := r.URL.Query().Get("servicename")
-
-	// servicename is required
-	if serviceName == "" {
-		http.Error(w, `{"error": "servicename parameter is required"}`, http.StatusBadRequest)
-		return
-	}
-
-	if l := r.URL.Query().Get("limit"); l != "" {
-		if parsedLimit, err := strconv.Atoi(l); err == nil {
-			limit = parsedLimit
-			if limit > 100 {
-				limit = 100
-			}
-		}
-	}
-
-	if o := r.URL.Query().Get("offset"); o != "" {
-		if parsedOffset, err := strconv.Atoi(o); err == nil {
-			offset = parsedOffset
-		}
-	}
-
-	traces, err := s.db.GetTracesPaginatedByService(serviceName, limit, offset)
-	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error": "Database error: %v"}`, err), http.StatusInternalServerError)
-		return
-	}
-
-	// Return traces as JSON array
-	w.Write([]byte("["))
-	for i, trace := range traces {
-		if i > 0 {
-			w.Write([]byte(","))
-		}
-		w.Write([]byte(trace.Data))
-	}
-	w.Write([]byte("]"))
-}
-
-// httpGetMetrics handles GET /api/metrics requests
-func (s *KubiksMCP) httpGetMetrics(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	// Parse query parameters
-	limit := 10
-	offset := 0
-	serviceName := r.URL.Query().Get("servicename")
-
-	// servicename is required
-	if serviceName == "" {
-		http.Error(w, `{"error": "servicename parameter is required"}`, http.StatusBadRequest)
-		return
-	}
-
-	if l := r.URL.Query().Get("limit"); l != "" {
-		if parsedLimit, err := strconv.Atoi(l); err == nil {
-			limit = parsedLimit
-			if limit > 100 {
-				limit = 100
-			}
-		}
-	}
-
-	if o := r.URL.Query().Get("offset"); o != "" {
-		if parsedOffset, err := strconv.Atoi(o); err == nil {
-			offset = parsedOffset
-		}
-	}
-
-	metrics, err := s.db.GetMetricsPaginatedByService(serviceName, limit, offset)
-	if err != nil {
-		http.Error(w, fmt.Sprintf(`{"error": "Database error: %v"}`, err), http.StatusInternalServerError)
-		return
-	}
-
-	// Return metrics as JSON array
-	w.Write([]byte("["))
-	for i, metric := range metrics {
-		if i > 0 {
-			w.Write([]byte(","))
-		}
-		w.Write([]byte(metric.Data))
-	}
-	w.Write([]byte("]"))
 }
 
 // Close closes the MCP server
