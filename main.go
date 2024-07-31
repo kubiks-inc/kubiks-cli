@@ -86,8 +86,8 @@ func main() {
 	// Add nextjs command
 	var nextjsCmd = &cobra.Command{
 		Use:   "nextjs",
-		Short: "Start the Next.js development server",
-		Long:  `Start the Next.js development server for the current project`,
+		Short: "Start the Next.js development server with OpenTelemetry",
+		Long:  `Start the Next.js development server with OpenTelemetry instrumentation for the current project`,
 		Run: func(cmd *cobra.Command, args []string) {
 			devCommand := commands.NewDevCommand()
 			if err := devCommand.RunDirect(); err != nil {

@@ -43,12 +43,8 @@ func (m *Model) Init() tea.Cmd {
 
 // killChildProcess kills the current running command and its child processes
 func (m *Model) killChildProcess() {
-	if m.currentCmd != nil && m.currentCmd.Process != nil {
-		// Kill the entire process group
-		pgid, err := syscall.Getpgid(m.currentCmd.Process.Pid)
-		if err == nil {
-			syscall.Kill(-pgid, syscall.SIGTERM)
-		}
+	if m.currentCmd != nil {
+		killProcessGroup(m.currentCmd)
 		m.currentCmd = nil
 	}
 }
@@ -106,13 +102,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Handle signals in a goroutine
 		go func() {
 			<-sigChan
-			if msg.Cmd.Process != nil {
-				// Kill the entire process group
-				pgid, err := syscall.Getpgid(msg.Cmd.Process.Pid)
-				if err == nil {
-					syscall.Kill(-pgid, syscall.SIGTERM)
-				}
-			}
+			killProcessGroup(msg.Cmd)
 		}()
 
 		// Use tea.ExecProcess to suspend the UI and run the command

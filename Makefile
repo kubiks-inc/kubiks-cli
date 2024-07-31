@@ -13,6 +13,8 @@ build:
 	@echo "Building $(BINARY_NAME)..."
 	@mkdir -p $(BIN_DIR)
 	@go build -o $(BIN_DIR)/$(BINARY_NAME) $(MAIN_FILE)
+	@echo "Copying instrumentation files..."
+	@cp internal/executor/instrumentation.js $(BIN_DIR)/
 	@echo "Built $(BINARY_NAME) in $(BIN_DIR)/"
 
 # Clean build artifacts
@@ -65,6 +67,8 @@ build-all: clean
 	@GOOS=darwin GOARCH=arm64 go build -o $(BIN_DIR)/$(BINARY_NAME)-darwin-arm64 $(MAIN_FILE)
 	@echo "Building for Windows (amd64)..."
 	@GOOS=windows GOARCH=amd64 go build -o $(BIN_DIR)/$(BINARY_NAME)-windows-amd64.exe $(MAIN_FILE)
+	@echo "Copying instrumentation files..."
+	@cp internal/executor/instrumentation.js $(BIN_DIR)/
 	@echo "Cross-platform builds complete"
 
 # Help target
