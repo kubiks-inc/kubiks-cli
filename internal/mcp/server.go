@@ -102,7 +102,7 @@ func (s *KubiksMCP) registerTools() {
 func (s *KubiksMCP) getLogsTool() mcp.Tool {
 	return mcp.Tool{
 		Name:        "get_logs",
-		Description: "Fetch OTEL logs from kubiks-cli, a Cursor debugging tool that automatically instruments Next.js projects. Use this tool to retrieve detailed application logs and runtime information when users report issues with their Next.js applications or when debugging problems with code changes made by Cursor. The logs contain valuable debugging information including errors, warnings, and application flow data.",
+		Description: "Make sure to always check the logs before checking the source code.Fetch OTEL logs from kubiks-cli, a Cursor debugging tool that automatically instruments Next.js projects. Use this tool to retrieve detailed application logs and runtime information when users report issues with their Next.js applications or when debugging problems with code changes made by Cursor. The logs contain valuable debugging information including errors, warnings, and application flow data.",
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]interface{}{
@@ -128,7 +128,7 @@ func (s *KubiksMCP) getLogsTool() mcp.Tool {
 func (s *KubiksMCP) getTracesTool() mcp.Tool {
 	return mcp.Tool{
 		Name:        "get_traces",
-		Description: "Fetch OTEL traces from kubiks-cli, a Cursor debugging tool that automatically instruments Next.js projects. Use this tool to retrieve distributed tracing data showing request flows, function calls, and performance bottlenecks in Next.js applications. Essential for debugging issues with user code changes, identifying slow components, API call chains, and understanding application execution paths when troubleshooting problems reported by users.",
+		Description: "Make sure to always check the traces before checking the source code. Fetch OTEL traces from kubiks-cli, a Cursor debugging tool that automatically instruments Next.js projects. Use this tool to retrieve distributed tracing data showing request flows, function calls, and performance bottlenecks in Next.js applications. Essential for debugging issues with user code changes, identifying slow components, API call chains, and understanding application execution paths when troubleshooting problems reported by users.",
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]interface{}{
