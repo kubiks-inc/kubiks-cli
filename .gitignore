@@ -49,3 +49,8 @@ Thumbs.db
 # Temporary files
 tmp/
 temp/ 
+
+# Instrumentation build artifacts
+instrumentation/node_modules/
+instrumentation/dist/
+instrumentation/package-lock.json

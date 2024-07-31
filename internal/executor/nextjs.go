@@ -1,7 +1,6 @@
 package executor
 
 import (
-	_ "embed"
 	"fmt"
 	"os"
 	"os/exec"
@@ -11,9 +10,6 @@ import (
 
 	"github.com/kubiks-inc/kubiks-cli/pkg/types"
 )
-
-//go:embed instrumentation.js
-var instrumentationContent string
 
 // NextJSExecutor handles execution of Next.js applications with OpenTelemetry instrumentation
 type NextJSExecutor struct {
@@ -45,15 +41,13 @@ func NewNextJSExecutor() (*NextJSExecutor, error) {
 	return executor, nil
 }
 
-// ensureInstrumentationFile creates the instrumentation.js file if it doesn't exist
+// ensureInstrumentationFile checks if the instrumentation.js file exists
 func (e *NextJSExecutor) ensureInstrumentationFile() error {
-	// Check if file already exists
-	if _, err := os.Stat(e.instrumentationPath); err == nil {
-		return nil // File already exists
+	// Check if file exists
+	if _, err := os.Stat(e.instrumentationPath); err != nil {
+		return fmt.Errorf("instrumentation file not found at %s. Please run 'make build' to generate it", e.instrumentationPath)
 	}
-
-	// Write the embedded instrumentation file content
-	return os.WriteFile(e.instrumentationPath, []byte(instrumentationContent), 0644)
+	return nil
 }
 
 // Execute runs the Next.js development server with OpenTelemetry instrumentation (for TUI)

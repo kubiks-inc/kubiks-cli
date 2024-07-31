@@ -13,8 +13,10 @@ build:
 	@echo "Building $(BINARY_NAME)..."
 	@mkdir -p $(BIN_DIR)
 	@go build -o $(BIN_DIR)/$(BINARY_NAME) $(MAIN_FILE)
+	@echo "Building instrumentation..."
+	@cd instrumentation && npm install --silent && npm run build
 	@echo "Copying instrumentation files..."
-	@cp internal/executor/instrumentation.js $(BIN_DIR)/
+	@cp instrumentation/dist/instrumentation.bundled.js $(BIN_DIR)/instrumentation.js
 	@echo "Built $(BINARY_NAME) in $(BIN_DIR)/"
 
 # Clean build artifacts
@@ -22,6 +24,7 @@ clean:
 	@echo "Cleaning build artifacts..."
 	@rm -rf $(BIN_DIR)
 	@rm -f $(BINARY_NAME)
+	@cd instrumentation && npm run clean 2>/dev/null || true
 	@echo "Clean complete"
 
 # Run the application
@@ -67,8 +70,10 @@ build-all: clean
 	@GOOS=darwin GOARCH=arm64 go build -o $(BIN_DIR)/$(BINARY_NAME)-darwin-arm64 $(MAIN_FILE)
 	@echo "Building for Windows (amd64)..."
 	@GOOS=windows GOARCH=amd64 go build -o $(BIN_DIR)/$(BINARY_NAME)-windows-amd64.exe $(MAIN_FILE)
+	@echo "Building instrumentation..."
+	@cd instrumentation && npm install --silent && npm run build
 	@echo "Copying instrumentation files..."
-	@cp internal/executor/instrumentation.js $(BIN_DIR)/
+	@cp instrumentation/dist/instrumentation.bundled.js $(BIN_DIR)/instrumentation.js
 	@echo "Cross-platform builds complete"
 
 # Help target
