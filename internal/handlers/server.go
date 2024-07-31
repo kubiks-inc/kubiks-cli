@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/kubiks-inc/kubiks-cli/internal/database"
+	"github.com/kubiks-inc/kubiks-cli/pkg/types"
 )
 
 // Server represents the HTTP server with database connection
@@ -17,7 +18,8 @@ type Server struct {
 
 // NewServer creates a new server instance
 func NewServer(port string) (*Server, error) {
-	db, err := database.NewDB("./kubiks_data.db")
+	dbPath := types.GetDatabasePath()
+	db, err := database.NewDB(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize database: %w", err)
 	}
@@ -176,6 +178,6 @@ func (s *Server) StatsHandler(w http.ResponseWriter, r *http.Request) {
 		"logs_count": %d,
 		"metrics_count": %d,
 		"traces_count": %d,
-		"database_path": "./kubiks_data.db"
-	}`, stats["logs_count"], stats["metrics_count"], stats["traces_count"])
+		"database_path": "%s"
+	}`, stats["logs_count"], stats["metrics_count"], stats["traces_count"], types.GetDatabasePath())
 }

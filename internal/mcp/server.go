@@ -473,6 +473,7 @@ func (s *KubiksMCP) httpGetMetrics(w http.ResponseWriter, r *http.Request) {
 
 // Close closes the MCP server
 func (s *KubiksMCP) Close() error {
-	// Graceful shutdown if needed
+	// The HTTP server shutdown is handled by the caller through http.Server.Close()
+	// Here we can add any MCP-specific cleanup if needed in the future
 	return nil
 }

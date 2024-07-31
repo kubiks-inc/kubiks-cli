@@ -29,8 +29,6 @@ func NewServerCommand() *ServerCommand {
 	}
 }
 
-
-
 // RunDirect runs the server directly without TUI wrapper
 func (c *ServerCommand) RunDirect() error {
 	return c.startServer()
@@ -78,26 +76,57 @@ func (c *ServerCommand) startServer() error {
 
 	// Set up graceful shutdown
 	shutdownChan := make(chan struct{})
+	var shutdownOnce sync.Once // Ensure shutdown is triggered only once
 	var wg sync.WaitGroup
 
+	// Function to trigger shutdown safely
+	triggerShutdown := func() {
+		shutdownOnce.Do(func() {
+			close(shutdownChan)
+		})
+	}
+
+	// Signal handler goroutine
 	go func() {
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 		<-sigChan
 
 		fmt.Println("\n🛑 Shutting down servers...")
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
 
-		// Shutdown both servers
-		if err := otelHTTPServer.Shutdown(ctx); err != nil {
-			log.Printf("OTEL server shutdown error: %v", err)
-		}
-		if err := mcpHTTPServer.Shutdown(ctx); err != nil {
-			log.Printf("MCP server shutdown error: %v", err)
+		// Create a channel to track shutdown completion
+		shutdownDone := make(chan struct{})
+
+		go func() {
+			// Graceful shutdown for OTEL server only
+			gracefulCtx, gracefulCancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer gracefulCancel()
+
+			// Try graceful shutdown of OTEL server
+			otelErr := otelHTTPServer.Shutdown(gracefulCtx)
+			if otelErr != nil {
+				// Force close OTEL server if graceful failed
+				otelHTTPServer.Close()
+			}
+
+			// Force close MCP server immediately (SSE connections don't close gracefully)
+			mcpHTTPServer.Close()
+
+			close(shutdownDone)
+		}()
+
+		// Wait for shutdown to complete with overall timeout
+		overallTimeout := time.NewTimer(5 * time.Second)
+		defer overallTimeout.Stop()
+
+		select {
+		case <-shutdownDone:
+			// Silent completion
+		case <-overallTimeout.C:
+			log.Printf("Shutdown timeout exceeded")
 		}
 
-		close(shutdownChan)
+		triggerShutdown()
 	}()
 
 	// Display startup information
@@ -112,7 +141,7 @@ func (c *ServerCommand) startServer() error {
 		defer wg.Done()
 		if err := otelHTTPServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Printf("OTEL server failed: %v", err)
-			close(shutdownChan)
+			triggerShutdown()
 		}
 	}()
 
@@ -122,7 +151,7 @@ func (c *ServerCommand) startServer() error {
 		defer wg.Done()
 		if err := mcpHTTPServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Printf("MCP server failed: %v", err)
-			close(shutdownChan)
+			triggerShutdown()
 		}
 	}()
 
@@ -134,5 +163,3 @@ func (c *ServerCommand) startServer() error {
 
 	return nil
 }
-
-

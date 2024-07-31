@@ -50,6 +50,12 @@ Thumbs.db
 tmp/
 temp/ 
 
+# Database files (development/testing)
+*.db
+*.db-wal
+*.db-shm
+kubiks-data/
+
 # Instrumentation build artifacts
 node_modules/
 dist/
