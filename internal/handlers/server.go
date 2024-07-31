@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 
 	"github.com/kubiks-inc/kubiks-cli/internal/database"
 	"github.com/kubiks-inc/kubiks-cli/pkg/types"
@@ -78,18 +77,11 @@ func (s *Server) OTELLogsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	fmt.Printf("\n🪵 [OTEL LOGS] Received at %s\n", time.Now().Format("15:04:05"))
-	fmt.Printf("Content-Type: %s\n", r.Header.Get("Content-Type"))
-	fmt.Printf("Content-Length: %d bytes\n", len(body))
-
 	traceID := database.ExtractTraceID(body)
 
-	// Store raw JSON in database
-	id, err := s.db.InsertLog(traceID, string(body))
+	_, err = s.db.InsertLog(traceID, string(body))
 	if err != nil {
 		fmt.Printf("❌ Failed to store log in database: %v\n", err)
-	} else {
-		fmt.Printf("✅ Log stored in database (ID: %d, TraceID: %s)\n", id, traceID)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -111,18 +103,11 @@ func (s *Server) OTELMetricsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	fmt.Printf("\n📊 [OTEL METRICS] Received at %s\n", time.Now().Format("15:04:05"))
-	fmt.Printf("Content-Type: %s\n", r.Header.Get("Content-Type"))
-	fmt.Printf("Content-Length: %d bytes\n", len(body))
-
 	traceID := database.ExtractTraceID(body)
 
-	// Store raw JSON in database
-	id, err := s.db.InsertMetric(traceID, string(body))
+	_, err = s.db.InsertMetric(traceID, string(body))
 	if err != nil {
 		fmt.Printf("❌ Failed to store metric in database: %v\n", err)
-	} else {
-		fmt.Printf("✅ Metric stored in database (ID: %d, TraceID: %s)\n", id, traceID)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -144,18 +129,11 @@ func (s *Server) OTELTracesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	fmt.Printf("\n🔍 [OTEL TRACES] Received at %s\n", time.Now().Format("15:04:05"))
-	fmt.Printf("Content-Type: %s\n", r.Header.Get("Content-Type"))
-	fmt.Printf("Content-Length: %d bytes\n", len(body))
-
 	traceID := database.ExtractTraceID(body)
 
-	// Store raw JSON in database
-	id, err := s.db.InsertTrace(traceID, string(body))
+	_, err = s.db.InsertTrace(traceID, string(body))
 	if err != nil {
 		fmt.Printf("❌ Failed to store trace in database: %v\n", err)
-	} else {
-		fmt.Printf("✅ Trace stored in database (ID: %d, TraceID: %s)\n", id, traceID)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
