@@ -1,17 +1,22 @@
 package commands
 
 import (
+	"context"
 	"fmt"
+	"log"
+	"net/http"
 	"os"
-	"os/exec"
+	"os/signal"
 	"syscall"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"github.com/kubiks-inc/kubiks-cli/internal/handlers"
 	"github.com/kubiks-inc/kubiks-cli/pkg/types"
 )
 
-// ServerCommand handles server commands (MCP, OTEL, etc.)
+// ServerCommand handles server commands (OTEL, MCP, etc.)
 type ServerCommand struct {
 	port string
 }
@@ -23,168 +28,80 @@ func NewServerCommand() *ServerCommand {
 	}
 }
 
-// startMCPServer starts the HTTP server with hello world endpoint
-func (c *ServerCommand) startMCPServer() *exec.Cmd {
-	// Create a temporary Go file with the server code
-	serverCode := `package main
-
-import (
-	"fmt"
-	"io"
-	"log"
-	"net/http"
-	"time"
-)
-
-func helloHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hello World from Kubiks Server!\n")
-	fmt.Fprintf(w, "Method: %s\n", r.Method)
-	fmt.Fprintf(w, "URL: %s\n", r.URL.Path)
-	fmt.Fprintf(w, "Server running on port ` + c.port + `\n")
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "OK")
-}
-
-func otelLogsHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	defer r.Body.Close()
-
-	fmt.Printf("\n🪵 [OTEL LOGS] Received at %s\n", time.Now().Format("15:04:05"))
-	fmt.Printf("Content-Type: %s\n", r.Header.Get("Content-Type"))
-	fmt.Printf("Content-Length: %d bytes\n", len(body))
-	if len(body) > 0 {
-		fmt.Printf("Payload:\n%s\n", string(body))
-	}
-	fmt.Println("----------------------------------------")
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "{\"partialSuccess\":{}}")
-}
-
-func otelMetricsHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	defer r.Body.Close()
-
-	fmt.Printf("\n📊 [OTEL METRICS] Received at %s\n", time.Now().Format("15:04:05"))
-	fmt.Printf("Content-Type: %s\n", r.Header.Get("Content-Type"))
-	fmt.Printf("Content-Length: %d bytes\n", len(body))
-	if len(body) > 0 {
-		fmt.Printf("Payload:\n%s\n", string(body))
-	}
-	fmt.Println("----------------------------------------")
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "{\"partialSuccess\":{}}")
-}
-
-func otelTracesHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	defer r.Body.Close()
-
-	fmt.Printf("\n🔍 [OTEL TRACES] Received at %s\n", time.Now().Format("15:04:05"))
-	fmt.Printf("Content-Type: %s\n", r.Header.Get("Content-Type"))
-	fmt.Printf("Content-Length: %d bytes\n", len(body))
-	if len(body) > 0 {
-		fmt.Printf("Payload:\n%s\n", string(body))
-	}
-	fmt.Println("----------------------------------------")
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "{\"partialSuccess\":{}}")
-}
-
-func main() {
-	http.HandleFunc("/", helloHandler)
-	http.HandleFunc("/health", healthHandler)
-	
-	// OTEL endpoints
-	http.HandleFunc("/v1/logs", otelLogsHandler)
-	http.HandleFunc("/v1/metrics", otelMetricsHandler)
-	http.HandleFunc("/v1/traces", otelTracesHandler)
-	
-	fmt.Printf("🚀 Kubiks Server starting on port ` + c.port + `...\n")
-	fmt.Printf("📍 Endpoints:\n")
-	fmt.Printf("   • http://localhost:` + c.port + `/ (Hello World)\n")
-	fmt.Printf("   • http://localhost:` + c.port + `/health (Health Check)\n")
-	fmt.Printf("   • http://localhost:` + c.port + `/v1/logs (OTEL Logs)\n")
-	fmt.Printf("   • http://localhost:` + c.port + `/v1/metrics (OTEL Metrics)\n")
-	fmt.Printf("   • http://localhost:` + c.port + `/v1/traces (OTEL Traces)\n")
-	fmt.Printf("💡 Press Ctrl+C to stop the server\n\n")
-	
-	log.Fatal(http.ListenAndServe(":` + c.port + `", nil))
-}`
-
-	// Write the server code to a temporary file
-	tmpFile := "/tmp/kubiks_mcp_server.go"
-	if err := os.WriteFile(tmpFile, []byte(serverCode), 0644); err != nil {
-		return nil
-	}
-
-	// Create command to run the Go server
-	cmd := exec.Command("go", "run", tmpFile)
-	
-	// Inherit all environment variables from parent process
-	cmd.Env = os.Environ()
-	
-	// Set working directory to current directory
-	cmd.Dir, _ = os.Getwd()
-	
-	// Set process group for proper signal handling
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Setpgid: true,
-		Pgid:    0,
-	}
-
-	return cmd
-}
-
-// Execute runs the MCP server
+// Execute runs the HTTP server with OTEL endpoints
 func (c *ServerCommand) Execute() tea.Cmd {
 	return func() tea.Msg {
-		cmd := c.startMCPServer()
-		if cmd == nil {
+		if err := c.startServer(); err != nil {
 			return types.CommandExecutedMsg{
 				Output: "",
-				Err:    fmt.Errorf("failed to create MCP server command"),
+				Err:    fmt.Errorf("failed to start server: %w", err),
 			}
 		}
-
-		// Return the command to be executed with suspended UI
-		return types.ExecMsg{Cmd: cmd}
+		return types.CommandExecutedMsg{
+			Output: "Server stopped",
+			Err:    nil,
+		}
 	}
+}
+
+// startServer starts the HTTP server directly in this process
+func (c *ServerCommand) startServer() error {
+	// Create server instance with database
+	server, err := handlers.NewServer(c.port)
+	if err != nil {
+		return fmt.Errorf("failed to create server: %w", err)
+	}
+	defer server.Close()
+
+	// Set up HTTP routes
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", server.HelloHandler)
+	mux.HandleFunc("/health", server.HealthHandler)
+	mux.HandleFunc("/v1/logs", server.OTELLogsHandler)
+	mux.HandleFunc("/v1/metrics", server.OTELMetricsHandler)
+	mux.HandleFunc("/v1/traces", server.OTELTracesHandler)
+	mux.HandleFunc("/stats", server.StatsHandler)
+
+	httpServer := &http.Server{
+		Addr:         ":" + c.port,
+		Handler:      mux,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	// Set up graceful shutdown
+	shutdownChan := make(chan struct{})
+	go func() {
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+		<-sigChan
+
+		fmt.Println("\n🛑 Shutting down server...")
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		if err := httpServer.Shutdown(ctx); err != nil {
+			log.Printf("Server shutdown error: %v", err)
+		}
+		close(shutdownChan)
+	}()
+
+	// Display startup information
+	fmt.Printf("🚀 Kubiks Server starting on port %s...\n", c.port)
+	fmt.Printf("💡 Press Ctrl+C to stop the server\n\n")
+
+	// Start server
+	go func() {
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Printf("Server failed to start: %v", err)
+			close(shutdownChan)
+		}
+	}()
+
+	// Wait for shutdown signal
+	<-shutdownChan
+	return nil
 }
 
 // GetCommand returns the command definition for the UI
