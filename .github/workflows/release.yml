@@ -1,0 +1,197 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    
+    strategy:
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+            os: linux
+          - goos: linux
+            goarch: arm64
+            os: linux
+          - goos: darwin
+            goarch: amd64
+            os: darwin
+          - goos: darwin
+            goarch: arm64
+            os: darwin
+          - goos: windows
+            goarch: amd64
+            os: windows
+            ext: .exe
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.23'
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: instrumentation/package-lock.json
+    
+    - name: Get version
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+        else
+          echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Install dependencies
+      run: |
+        go mod download
+        cd instrumentation && npm install
+    
+    - name: Build instrumentation
+      run: cd instrumentation && npm run build
+    
+    - name: Build binary
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+        CGO_ENABLED: 0
+      run: |
+        mkdir -p dist
+        binary_name="kubiks${{ matrix.ext }}"
+        go build -ldflags="-s -w -X main.version=${{ steps.version.outputs.version }}" -o dist/$binary_name .
+        cp instrumentation/dist/instrumentation.bundled.js dist/instrumentation.js
+        
+        # Create archive
+        cd dist
+        if [ "${{ matrix.goos }}" = "windows" ]; then
+          zip -r kubiks-${{ steps.version.outputs.version }}-${{ matrix.os }}-${{ matrix.goarch }}.zip $binary_name instrumentation.js
+        else
+          tar -czf kubiks-${{ steps.version.outputs.version }}-${{ matrix.os }}-${{ matrix.goarch }}.tar.gz $binary_name instrumentation.js
+        fi
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: kubiks-${{ matrix.os }}-${{ matrix.goarch }}
+        path: dist/*
+        retention-days: 90
+
+  create-release:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Get version
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+        else
+          echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+    
+    - name: Prepare release assets
+      run: |
+        mkdir -p release-assets
+        find artifacts -name "*.tar.gz" -o -name "*.zip" | xargs -I {} cp {} release-assets/
+        ls -la release-assets/
+    
+    - name: Generate changelog
+      id: changelog
+      run: |
+        if git tag --list | grep -q "^${{ steps.version.outputs.version }}$"; then
+          # Get previous tag
+          PREV_TAG=$(git tag --sort=-version:refname | grep -A1 "^${{ steps.version.outputs.version }}$" | tail -n1)
+          if [ -n "$PREV_TAG" ] && [ "$PREV_TAG" != "${{ steps.version.outputs.version }}" ]; then
+            echo "## Changes since $PREV_TAG" > CHANGELOG.md
+            git log --pretty=format:"- %s (%h)" $PREV_TAG..${{ steps.version.outputs.version }} >> CHANGELOG.md
+          else
+            echo "## Initial Release" > CHANGELOG.md
+            echo "First release of kubiks-cli" >> CHANGELOG.md
+          fi
+        else
+          echo "## Release ${{ steps.version.outputs.version }}" > CHANGELOG.md
+          echo "Manual release triggered" >> CHANGELOG.md
+        fi
+        
+        echo "## Installation" >> CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        echo "### Homebrew (macOS/Linux)" >> CHANGELOG.md
+        echo "\`\`\`bash" >> CHANGELOG.md
+        echo "brew install kubiks-inc/tap/kubiks" >> CHANGELOG.md
+        echo "\`\`\`" >> CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        echo "### Manual Installation" >> CHANGELOG.md
+        echo "Download the appropriate binary for your platform from the assets below." >> CHANGELOG.md
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.version.outputs.version }}
+        name: Release ${{ steps.version.outputs.version }}
+        body_path: CHANGELOG.md
+        files: release-assets/*
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  update-homebrew:
+    needs: create-release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - name: Get version
+      id: version
+      run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+    
+    - name: Update Homebrew formula
+      uses: dawidd6/action-homebrew-bump-formula@v3
+      with:
+        token: ${{ secrets.HOMEBREW_TOKEN }}
+        org: kubiks-inc
+        tap: homebrew-tap
+        formula: kubiks
+        tag: ${{ steps.version.outputs.version }}
+        revision: ${{ github.sha }}
+        force: false

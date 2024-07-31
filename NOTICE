@@ -1,0 +1,36 @@
+Kubiks CLI
+Copyright 2024 Kubiks Inc.
+
+This product includes software developed by Kubiks Inc.
+(https://github.com/kubiks-inc/kubiks-cli).
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+This software includes the following third-party components:
+
+- Go language runtime and standard library
+  Copyright (c) 2009 The Go Authors. All rights reserved.
+  Licensed under the BSD 3-Clause License
+
+- Cobra CLI framework (github.com/spf13/cobra)
+  Copyright (c) 2013 Steve Francia
+  Licensed under the Apache License, Version 2.0
+
+- SQLite driver (github.com/mattn/go-sqlite3) 
+  Copyright (c) 2014 Yasuhiro Matsumoto
+  Licensed under the MIT License
+
+- MCP Go SDK (github.com/mark3labs/mcp-go)
+  Licensed under the MIT License
+
+For a complete list of dependencies and their licenses, see go.mod and go.sum files.

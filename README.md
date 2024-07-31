@@ -1,114 +1,158 @@
 # Kubiks CLI
 
-A command-line interface for managing development workflows with Next.js applications.
+[![Tests](https://github.com/kubiks-inc/kubiks-cli/actions/workflows/test.yml/badge.svg)](https://github.com/kubiks-inc/kubiks-cli/actions/workflows/test.yml)
+[![Release](https://github.com/kubiks-inc/kubiks-cli/actions/workflows/release.yml/badge.svg)](https://github.com/kubiks-inc/kubiks-cli/actions/workflows/release.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/kubiks-inc/kubiks-cli)](https://goreportcard.com/report/github.com/kubiks-inc/kubiks-cli)
+[![Coverage](https://codecov.io/gh/kubiks-inc/kubiks-cli/branch/main/graph/badge.svg)](https://codecov.io/gh/kubiks-inc/kubiks-cli)
 
-## Features
+**AI-powered debugging for Next.js applications.** Automatically instrument your app, capture all logs, traces, and requests, then let Cursor fix bugs with full context.
 
-- Command-line interface built with Cobra
-- Next.js project detection
-- Development server management
-- OpenTelemetry data collection and MCP server
-- Proper signal handling and process cleanup
+## 🎯 What is Kubiks CLI?
 
-## Project Structure
+When something breaks in your Next.js app, wouldn't it be amazing if your AI code editor could see exactly what happened? **Kubiks CLI makes this possible.**
 
-```
-kubiks-cli/
-├── main.go                 # Application entry point
-├── go.mod                  # Go module definition
-├── internal/               # Private application packages
-│   ├── commands/           # Command implementations
-│   │   ├── dev.go         # Development server command
-│   │   └── server.go      # OTEL and MCP server command
-│   ├── detector/           # Project type detection
-│   │   └── nextjs.go      # Next.js project detector
-│   ├── executor/           # Command execution logic
-│   ├── handlers/           # HTTP handlers for OTEL
-│   └── mcp/               # MCP server implementation
-└── pkg/                   # Public packages
-    └── types/             # Shared types and interfaces
-        └── types.go       # Common type definitions
-```
+- 🔍 **Auto-instrument** your Next.js application with zero config
+- 📊 **Capture everything**: HTTP requests, SQL queries, AI SDK calls, server/client logs
+- 🤖 **Feed Cursor** complete context through MCP (Model Context Protocol)  
+- ⚡ **Debug faster**: Ask Cursor to fix issues with full trace data and request payloads
 
-## Architecture
-
-The project follows Go best practices with a clean separation of concerns:
-
-- **`main.go`**: Entry point that wires everything together
-- **`internal/`**: Private packages not meant to be imported by other projects
-  - **`commands/`**: Business logic for different CLI commands
-  - **`detector/`**: Project type detection logic
-  - **`executor/`**: Command execution and platform-specific logic
-  - **`handlers/`**: HTTP handlers for OpenTelemetry endpoints
-  - **`mcp/`**: Model Context Protocol server implementation
-- **`pkg/`**: Public packages that could be reused by other projects
-  - **`types/`**: Shared interfaces and data structures
-
-## Usage
-
-### Commands
-
-- `kubiks run server` - Start the OpenTelemetry and MCP servers
-- `kubiks run nextjs` - Start a Next.js development server with OpenTelemetry instrumentation
-- `kubiks help` - Show help for available commands
-
-### Examples
+## ✨ The Developer Experience
 
 ```bash
-# Start the OTEL and MCP servers
-kubiks run server
+# Start developing with full observability
+kubiks 
 
-# Start Next.js development server with instrumentation
-cd /path/to/nextjs/project
-kubiks run nextjs
-
-# Show help
-kubiks help
+# When something breaks, just ask Cursor:
+# "Why is my API failing?" 
+# Cursor sees the exact HTTP request, response, database queries, and stack traces
 ```
 
-## Development
+## 🚀 Core Features
 
-To build the project:
+- **🔧 Zero-configuration instrumentation** for Next.js applications
+- **📡 Real-time telemetry collection** (logs, metrics, traces)
+- **🗄️ Local SQLite storage** with intelligent querying
+- **🤖 MCP integration** for seamless AI editor support
+- **🌐 Cross-platform** support (macOS, Linux, Windows)
+
+## 🔥 Quick Start
+
+### Install via Homebrew (macOS/Linux)
 
 ```bash
-# Using Makefile (recommended)
+brew install kubiks-inc/tap/kubiks
+```
+
+### Or download for your platform
+[⬇️ Download from releases](https://github.com/kubiks-inc/kubiks-cli/releases)
+
+### Start debugging like a pro
+
+```bash
+# In your Next.js project directory
+kubiks 
+```
+
+That's it! Now when your app has issues, ask Cursor questions like:
+- *"Why is my login API returning 500?"*
+- *"What SQL queries are running when users click this button?"*
+- *"Show me the full request trace for the checkout flow"*
+
+Cursor will have complete visibility into your application's behavior.
+
+## 🛠️ How It Works
+
+1. **Instrument**: Kubiks automatically adds OpenTelemetry to your Next.js app
+2. **Capture**: All HTTP requests, database queries, API calls, and logs are recorded
+3. **Store**: Data is stored locally in SQLite for fast querying
+4. **Expose**: MCP server provides structured access to all telemetry data
+5. **Debug**: Cursor queries this data to understand and fix issues
+
+
+## 🎬 Demo
+
+```bash
+# Terminal 1: Start your instrumented Next.js app
+cd my-nextjs-app
+kubiks 
+
+# Now in Cursor, ask:
+# "My API endpoint /api/users is slow, what's happening?"
+
+# Cursor responds with:
+# "I can see from the traces that your /api/users endpoint is making 
+# 3 separate database queries taking 450ms total. Here's the optimization..."
+```
+
+## 🏗️ What Gets Captured
+
+- **🌐 HTTP Requests**: Full request/response cycles with headers and payloads
+- **🗄️ Database Queries**: SQL statements, execution time, and results
+- **🤖 AI SDK Calls**: LLM calls, Tool calls, prompts, responses.
+- **📝 Application Logs**: Both server-side and client-side logging
+- **⚡ Performance Metrics**: Response times, memory usage, and bottlenecks
+- **🔗 Distributed Traces**: End-to-end request flows across your stack
+
+## 🔧 Configuration
+
+Kubiks works out of the box with zero configuration. It automatically:
+- Detects Next.js projects
+- Configures OpenTelemetry instrumentation
+- Sets up local data storage
+- Exposes MCP endpoints for Cursor
+
+For advanced use cases, you can customize ports and data retention policies.
+
+## 🎯 Why Kubiks?
+
+**Traditional debugging**: Look at logs, add console statements, refresh browser, repeat...
+
+**Kubiks + Cursor**: Ask "What's wrong?" and get a complete analysis with full context.
+
+## 🤝 Contributing
+
+We welcome contributions! This is an open-source project built for the developer community.
+
+### Quick Development Setup
+
+```bash
+git clone https://github.com/kubiks-inc/kubiks-cli.git
+cd kubiks-cli
+make deps
+make test
 make build
-
-# Or directly with Go
-go build -o bin/kubiks
 ```
 
-### Makefile Commands
+### Areas We Need Help
+- 🔌 Framework integrations (React, Vue, Angular)
+- 🗄️ Database connectors (Postgres, MongoDB, etc.)
+- 🤖 Additional AI SDK instrumentation
+- 📊 Enhanced visualization and querying
+- 🐛 Bug reports and feature requests
 
-- `make build` - Build the application in bin/ directory
-- `make clean` - Clean build artifacts
-- `make run` - Build and run the application
-- `make deps` - Install dependencies
-- `make test` - Run tests
-- `make fmt` - Format code
-- `make build-all` - Build for multiple platforms
-- `make help` - Show all available commands
+## 📚 Learn More
 
-### Server Management
-- The OTEL server runs on port 7432 by default
-- The MCP server runs on port 7433 by default
-- Use Ctrl+C to stop running servers gracefully
+- **[MCP Protocol](https://github.com/modelcontextprotocol/specification)**: How Cursor communicates with Kubiks
+- **[OpenTelemetry](https://opentelemetry.io/)**: The instrumentation standard we use
+- **[Next.js](https://nextjs.org/)**: The framework we currently support (more coming!)
 
-### Next.js Development
-- Ensure you're in a Next.js project directory before running `kubiks run nextjs`
-- The instrumentation will automatically inject OpenTelemetry into your development server
-- Data will be sent to the OTEL server (start with `kubiks run server` first)
+## 🌟 Star us!
 
-## Dependencies
+If Kubiks helps you debug faster, please star the repo! It helps other developers discover this tool.
 
-- [Cobra](https://github.com/spf13/cobra) - Modern CLI framework for Go
-- [MCP-Go](https://github.com/mark3labs/mcp-go) - Model Context Protocol implementation
-- [SQLite](https://github.com/mattn/go-sqlite3) - Database driver for OpenTelemetry data storage
+[⭐ Star on GitHub](https://github.com/kubiks-inc/kubiks-cli)
 
-## License
+## 📄 License
 
-MIT License
+Apache 2.0 License - see [LICENSE](LICENSE) file for details.
 
-## Contributing
+## 🛟 Support & Community
 
-Contributions are welcome! Please feel free to submit a Pull Request. 
+- 🐛 [Report issues](https://github.com/kubiks-inc/kubiks-cli/issues/new/choose)
+- 💡 [Request features](https://github.com/kubiks-inc/kubiks-cli/issues/new/choose)
+- 💬 [Join discussions](https://github.com/kubiks-inc/kubiks-cli/discussions)
+- 📧 Email: [support@kubiks.inc](mailto:support@kubiks.inc)
+
+---
+
+**Made with ❤️ by developers, for developers.** Happy debugging! 🐛✨
