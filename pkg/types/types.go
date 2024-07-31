@@ -28,3 +28,13 @@ func GetAppDataDir() string {
 func GetDatabasePath() string {
 	return filepath.Join(GetAppDataDir(), "kubiks_data.db")
 }
+
+// MCPConfig represents the MCP configuration structure
+type MCPConfig struct {
+	MCPServers map[string]MCPServerConfig `json:"mcpServers"`
+}
+
+// MCPServerConfig represents an individual MCP server configuration
+type MCPServerConfig struct {
+	URL string `json:"url"`
+}

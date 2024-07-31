@@ -13,19 +13,22 @@ import (
 
 	"github.com/kubiks-inc/kubiks-cli/internal/handlers"
 	"github.com/kubiks-inc/kubiks-cli/internal/mcp"
+	"github.com/kubiks-inc/kubiks-cli/internal/mcpconfig"
 )
 
 // ServerCommand handles server commands (OTEL, MCP, etc.)
 type ServerCommand struct {
-	otelPort string
-	mcpPort  string
+	otelPort   string
+	mcpPort    string
+	mcpManager *mcpconfig.Manager
 }
 
 // NewServerCommand creates a new server command
 func NewServerCommand() *ServerCommand {
 	return &ServerCommand{
-		otelPort: "7432",
-		mcpPort:  "7433",
+		otelPort:   "7432",
+		mcpPort:    "7433",
+		mcpManager: mcpconfig.NewManager(),
 	}
 }
 
@@ -36,6 +39,11 @@ func (c *ServerCommand) RunDirect() error {
 
 // startServer starts both OTEL HTTP and MCP servers on separate ports
 func (c *ServerCommand) startServer() error {
+	// Setup MCP configuration
+	if err := c.mcpManager.AddKubiksServer(); err != nil {
+		fmt.Printf("Warning: failed to configure MCP server: %v\n", err)
+	}
+
 	// Create server instance with database
 	otelServer, err := handlers.NewServer(c.otelPort)
 	if err != nil {
@@ -93,6 +101,12 @@ func (c *ServerCommand) startServer() error {
 		<-sigChan
 
 		fmt.Println("\n🛑 Shutting down servers...")
+
+		// Clean up MCP configuration
+		fmt.Println("🧹 Cleaning up MCP configuration...")
+		if err := c.mcpManager.RemoveKubiksServer(); err != nil {
+			fmt.Printf("Warning: failed to clean up MCP configuration: %v\n", err)
+		}
 
 		// Create a channel to track shutdown completion
 		shutdownDone := make(chan struct{})
@@ -160,6 +174,11 @@ func (c *ServerCommand) startServer() error {
 
 	// Wait for servers to finish shutting down
 	wg.Wait()
+
+	// Clean up MCP configuration on normal exit
+	if err := c.mcpManager.RemoveKubiksServer(); err != nil {
+		fmt.Printf("Warning: failed to clean up MCP configuration: %v\n", err)
+	}
 
 	return nil
 }
