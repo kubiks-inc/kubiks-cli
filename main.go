@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -78,6 +80,14 @@ type commandStartedMsg struct {
 	cmd *exec.Cmd
 }
 
+// streamOutput reads from a reader and prints to stdout
+func streamOutput(reader io.Reader, prefix string) {
+	scanner := bufio.NewScanner(reader)
+	for scanner.Scan() {
+		fmt.Printf("%s%s\n", prefix, scanner.Text())
+	}
+}
+
 // runNpmDev executes npm run dev command
 func runNpmDev() tea.Cmd {
 	return func() tea.Msg {
@@ -85,14 +95,35 @@ func runNpmDev() tea.Cmd {
 		// Set process group to allow killing child processes
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 		
-		// Start the command
-		err := cmd.Start()
+		// Get stdout and stderr pipes
+		stdout, err := cmd.StdoutPipe()
 		if err != nil {
 			return commandExecutedMsg{
 				output: "",
 				err:    err,
 			}
 		}
+		
+		stderr, err := cmd.StderrPipe()
+		if err != nil {
+			return commandExecutedMsg{
+				output: "",
+				err:    err,
+			}
+		}
+		
+		// Start the command
+		err = cmd.Start()
+		if err != nil {
+			return commandExecutedMsg{
+				output: "",
+				err:    err,
+			}
+		}
+		
+		// Stream output in goroutines
+		go streamOutput(stdout, "")
+		go streamOutput(stderr, "")
 		
 		// Send message that command started
 		return commandStartedMsg{cmd: cmd}
@@ -196,8 +227,8 @@ func (m model) View() string {
 	s.WriteString("\n\n")
 
 	if m.executing {
-		s.WriteString("🔄 Executing command...\n\n")
-		s.WriteString(helpStyle.Render("Press q or ctrl+c to quit"))
+		s.WriteString("🔄 Command is running (output is printed above)...\n\n")
+		s.WriteString(helpStyle.Render("Press q or ctrl+c to stop and quit"))
 		return s.String()
 	}
 
