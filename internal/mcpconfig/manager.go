@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/kubiks-inc/kubiks-cli/pkg/types"
 )
@@ -26,7 +27,7 @@ func NewManager() *Manager {
 		// Fallback to current directory if home directory can't be determined
 		return &Manager{configPath: "./.cursor/mcp.json"}
 	}
-	
+
 	return &Manager{
 		configPath: filepath.Join(homeDir, ".cursor", "mcp.json"),
 	}
@@ -89,9 +90,18 @@ func (m *Manager) loadConfig() (*types.MCPConfig, error) {
 		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
+	// If the file is empty, return empty config
+	if len(data) == 0 || len(strings.TrimSpace(string(data))) == 0 {
+		return &types.MCPConfig{
+			MCPServers: make(map[string]types.MCPServerConfig),
+		}, nil
+	}
+
 	var config types.MCPConfig
 	if err := json.Unmarshal(data, &config); err != nil {
-		return nil, fmt.Errorf("failed to parse config file: %w", err)
+		// If unmarshal fails, exit the whole app
+		fmt.Fprintf(os.Stderr, "Fatal error: failed to parse MCP config file: %v\n", err)
+		os.Exit(1)
 	}
 
 	// Initialize map if it's nil
