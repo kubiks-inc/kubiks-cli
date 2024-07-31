@@ -1,0 +1,187 @@
+# golangci-lint configuration for kubiks-cli
+
+run:
+  timeout: 5m
+  issues-exit-code: 1
+  tests: true
+  modules-download-mode: readonly
+
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
+
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+  
+  govet:
+    check-shadowing: true
+    enable-all: true
+  
+  gocyclo:
+    min-complexity: 15
+  
+  dupl:
+    threshold: 100
+  
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+  
+  depguard:
+    rules:
+      main:
+        deny:
+          - pkg: "github.com/pkg/errors"
+            desc: "use standard library errors package"
+  
+  misspell:
+    locale: US
+  
+  lll:
+    line-length: 120
+  
+  goimports:
+    local-prefixes: github.com/kubiks-inc/kubiks-cli
+  
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    disabled-checks:
+      - wrapperFunc
+      - dupImport
+      - ifElseChain
+  
+  funlen:
+    lines: 80
+    statements: 40
+  
+  gocognit:
+    min-complexity: 20
+  
+  nestif:
+    min-complexity: 4
+  
+  godox:
+    keywords:
+      - TODO
+      - BUG
+      - FIXME
+      - NOTE
+      - HACK
+  
+  revive:
+    rules:
+      - name: exported
+        arguments:
+          - "disableStutteringCheck"
+
+linters:
+  enable:
+    - bodyclose
+    - depguard
+    - dogsled
+    - dupl
+    - errcheck
+    - exportloopref
+    - funlen
+    - gochecknoinits
+    - goconst
+    - gocritic
+    - gocyclo
+    - gofmt
+    - goimports
+    - gomnd
+    - goprintffuncname
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - lll
+    - misspell
+    - nakedret
+    - noctx
+    - nolintlint
+    - revive
+    - staticcheck
+    - stylecheck
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - whitespace
+    - gocognit
+    - nestif
+    - godox
+    - asciicheck
+    - gofumpt
+    - gci
+  
+  disable:
+    - exhaustivestruct
+    - exhaustive
+    - forcetypeassert
+    - goerr113
+    - golint
+    - interfacer
+    - maligned
+    - scopelint
+    - varcheck
+    - deadcode
+    - structcheck
+
+issues:
+  exclude-rules:
+    # Exclude some linters from running on tests files
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - errcheck
+        - dupl
+        - gosec
+        - funlen
+        - gocognit
+        - lll
+    
+    # Exclude known linter issues
+    - text: "weak cryptographic primitive"
+      linters:
+        - gosec
+    
+    # Exclude shadow checking on err variables
+    - text: "shadow: declaration of \"err\""
+      linters:
+        - govet
+    
+    # Exclude magic number issues in tests
+    - path: _test\.go
+      text: "mnd: Magic number"
+      linters:
+        - gomnd
+    
+    # Exclude line length issues in generated files
+    - path: ".*\\.pb\\.go"
+      linters:
+        - lll
+    
+    # Exclude issues in vendor directories
+    - path: vendor/
+      linters:
+        - all
+  
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+severity:
+  default-severity: error
+  rules:
+    - linters:
+        - godox
+      severity: info
