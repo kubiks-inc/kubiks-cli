@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -83,9 +84,54 @@ type execMsg struct {
 	cmd *exec.Cmd
 }
 
+// PackageJSON represents the structure of package.json
+type PackageJSON struct {
+	Dependencies    map[string]string `json:"dependencies"`
+	DevDependencies map[string]string `json:"devDependencies"`
+	Scripts         map[string]string `json:"scripts"`
+}
+
+// isNextJSApp checks if the current directory contains a Next.js application
+func isNextJSApp() (bool, error) {
+	// Check if package.json exists
+	packageJSON, err := os.ReadFile("package.json")
+	if err != nil {
+		return false, fmt.Errorf("package.json not found")
+	}
+
+	var pkg PackageJSON
+	if err := json.Unmarshal(packageJSON, &pkg); err != nil {
+		return false, fmt.Errorf("invalid package.json")
+	}
+
+	// Check for Next.js in dependencies or devDependencies
+	if pkg.Dependencies != nil {
+		if _, exists := pkg.Dependencies["next"]; exists {
+			return true, nil
+		}
+	}
+	
+	if pkg.DevDependencies != nil {
+		if _, exists := pkg.DevDependencies["next"]; exists {
+			return true, nil
+		}
+	}
+
+	return false, fmt.Errorf("Next.js not found in dependencies")
+}
+
 // runNpmDev executes npm run dev command
 func runNpmDev() tea.Cmd {
 	return func() tea.Msg {
+		// Check if this is a Next.js app
+		isNextJS, err := isNextJSApp()
+		if !isNextJS {
+			return commandExecutedMsg{
+				output: "",
+				err:    fmt.Errorf("only Next.js applications are supported. %v", err),
+			}
+		}
+		
 		cmd := exec.Command("npm", "run", "dev")
 		
 		// Inherit all environment variables from parent process
