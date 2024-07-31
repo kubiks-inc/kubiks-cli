@@ -14,9 +14,11 @@ import (
 // initializeCommands sets up all available commands
 func initializeCommands() []types.Command {
 	devCmd := commands.NewDevCommand()
+	mcpCmd := commands.NewMCPServerCommand()
 	
 	return []types.Command{
 		devCmd.GetCommand(),
+		mcpCmd.GetCommand(),
 		{
 			Name:        "exit",
 			Description: "Exit the application",
