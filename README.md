@@ -52,8 +52,23 @@ The project follows Go best practices with a clean separation of concerns:
 To build the project:
 
 ```bash
-go build -o kubiks
+# Using Makefile (recommended)
+make build
+
+# Or directly with Go
+go build -o bin/kubiks
 ```
+
+### Makefile Commands
+
+- `make build` - Build the application in bin/ directory
+- `make clean` - Clean build artifacts
+- `make run` - Build and run the application
+- `make deps` - Install dependencies
+- `make test` - Run tests
+- `make fmt` - Format code
+- `make build-all` - Build for multiple platforms
+- `make help` - Show all available commands
 
 ### Navigation
 - Press **↑/k** to move up in the menu
