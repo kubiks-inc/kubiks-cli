@@ -28,6 +28,11 @@ func NewServer(port string) (*Server, error) {
 	}, nil
 }
 
+// GetDB returns the database instance
+func (s *Server) GetDB() *database.DB {
+	return s.db
+}
+
 // Close closes the server resources
 func (s *Server) Close() error {
 	if s.db != nil {

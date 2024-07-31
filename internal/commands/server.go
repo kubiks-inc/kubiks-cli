@@ -7,12 +7,14 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/kubiks-inc/kubiks-cli/internal/handlers"
+	"github.com/kubiks-inc/kubiks-cli/internal/mcp"
 	"github.com/kubiks-inc/kubiks-cli/pkg/types"
 )
 
@@ -44,7 +46,7 @@ func (c *ServerCommand) Execute() tea.Cmd {
 	}
 }
 
-// startServer starts the HTTP server directly in this process
+// startServer starts both HTTP and MCP servers
 func (c *ServerCommand) startServer() error {
 	// Create server instance with database
 	server, err := handlers.NewServer(c.port)
@@ -52,6 +54,13 @@ func (c *ServerCommand) startServer() error {
 		return fmt.Errorf("failed to create server: %w", err)
 	}
 	defer server.Close()
+
+	// Create MCP server with shared database
+	mcpServer, err := mcp.NewMCPServer(server.GetDB())
+	if err != nil {
+		return fmt.Errorf("failed to create MCP server: %w", err)
+	}
+	defer mcpServer.Close()
 
 	// Set up HTTP routes
 	mux := http.NewServeMux()
@@ -72,35 +81,55 @@ func (c *ServerCommand) startServer() error {
 
 	// Set up graceful shutdown
 	shutdownChan := make(chan struct{})
+	var wg sync.WaitGroup
+
 	go func() {
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 		<-sigChan
 
-		fmt.Println("\n🛑 Shutting down server...")
+		fmt.Println("\n🛑 Shutting down servers...")
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
 		if err := httpServer.Shutdown(ctx); err != nil {
-			log.Printf("Server shutdown error: %v", err)
+			log.Printf("HTTP server shutdown error: %v", err)
 		}
+		
 		close(shutdownChan)
 	}()
 
 	// Display startup information
 	fmt.Printf("🚀 Kubiks Server starting on port %s...\n", c.port)
-	fmt.Printf("💡 Press Ctrl+C to stop the server\n\n")
+	fmt.Printf("📡 OpenTelemetry server running on http://localhost:%s\n", c.port)
+	fmt.Printf("🔗 MCP server running on stdio...\n")
+	fmt.Printf("💡 Press Ctrl+C to stop the servers\n\n")
 
-	// Start server
+	// Start HTTP server
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Printf("Server failed to start: %v", err)
+			log.Printf("HTTP server failed: %v", err)
 			close(shutdownChan)
+		}
+	}()
+
+	// Start MCP server
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := mcpServer.Start(); err != nil {
+			log.Printf("MCP server failed: %v", err)
 		}
 	}()
 
 	// Wait for shutdown signal
 	<-shutdownChan
+	
+	// Wait for servers to finish shutting down
+	wg.Wait()
+	
 	return nil
 }
 
@@ -108,7 +137,7 @@ func (c *ServerCommand) startServer() error {
 func (c *ServerCommand) GetCommand() types.Command {
 	return types.Command{
 		Name:        "run server",
-		Description: "Start server with OTEL endpoints (logs, metrics, traces)",
+		Description: "Start server with OTEL endpoints and MCP server (logs, metrics, traces)",
 		Action:      c.Execute,
 	}
 }
