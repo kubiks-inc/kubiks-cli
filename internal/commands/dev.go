@@ -58,8 +58,8 @@ func (c *DevCommand) Execute() tea.Cmd {
 // GetCommand returns the command definition for the UI
 func (c *DevCommand) GetCommand() types.Command {
 	return types.Command{
-		Name:        "run",
-		Description: "Run npm run dev in current directory",
+		Name:        "run app",
+		Description: "Run Next.js project in current directory",
 		Action:      c.Execute,
 	}
 }
