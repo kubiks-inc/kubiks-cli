@@ -56,7 +56,7 @@ func (c *ServerCommand) startServer() error {
 	defer server.Close()
 
 	// Create MCP server with shared database
-	mcpServer, err := mcp.NewMCPServer(server.GetDB())
+	mcpServer, err := mcp.NewMCPServer(server.GetDB(), c.port)
 	if err != nil {
 		return fmt.Errorf("failed to create MCP server: %w", err)
 	}
@@ -70,6 +70,11 @@ func (c *ServerCommand) startServer() error {
 	mux.HandleFunc("/v1/metrics", server.OTELMetricsHandler)
 	mux.HandleFunc("/v1/traces", server.OTELTracesHandler)
 	mux.HandleFunc("/stats", server.StatsHandler)
+
+	// Initialize MCP server endpoints
+	if err := mcpServer.Start(); err != nil {
+		return fmt.Errorf("failed to start MCP server: %w", err)
+	}
 
 	httpServer := &http.Server{
 		Addr:         ":" + c.port,
@@ -102,25 +107,16 @@ func (c *ServerCommand) startServer() error {
 	// Display startup information
 	fmt.Printf("🚀 Kubiks Server starting on port %s...\n", c.port)
 	fmt.Printf("📡 OpenTelemetry server running on http://localhost:%s\n", c.port)
-	fmt.Printf("🔗 MCP server running on stdio...\n")
+	fmt.Printf("🔗 MCP server running on http://localhost:%s/mcp/sse\n", c.port)
 	fmt.Printf("💡 Press Ctrl+C to stop the servers\n\n")
 
-	// Start HTTP server
+	// Start HTTP server (MCP endpoints are now part of HTTP server)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Printf("HTTP server failed: %v", err)
 			close(shutdownChan)
-		}
-	}()
-
-	// Start MCP server
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		if err := mcpServer.Start(); err != nil {
-			log.Printf("MCP server failed: %v", err)
 		}
 	}()
 

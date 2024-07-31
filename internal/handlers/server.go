@@ -80,29 +80,15 @@ func (s *Server) OTELLogsHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Content-Type: %s\n", r.Header.Get("Content-Type"))
 	fmt.Printf("Content-Length: %d bytes\n", len(body))
 
-	// Extract trace ID and service name for better logging
 	traceID := database.ExtractTraceID(body)
-	serviceName := database.ExtractServiceName(body)
 
 	// Store raw JSON in database
 	id, err := s.db.InsertLog(traceID, string(body))
 	if err != nil {
 		fmt.Printf("❌ Failed to store log in database: %v\n", err)
 	} else {
-		fmt.Printf("✅ Log stored in database (ID: %d, TraceID: %s, Service: %s)\n", id, traceID, serviceName)
+		fmt.Printf("✅ Log stored in database (ID: %d, TraceID: %s)\n", id, traceID)
 	}
-
-	// Display payload (truncated if too long)
-	if len(body) > 0 && len(body) < 1000 {
-		if pretty, err := database.PrettyPrintJSON(body); err == nil {
-			fmt.Printf("Payload:\n%s\n", pretty)
-		} else {
-			fmt.Printf("Payload:\n%s\n", string(body))
-		}
-	} else if len(body) >= 1000 {
-		fmt.Printf("Payload (truncated):\n%s...\n", string(body[:1000]))
-	}
-	fmt.Println("----------------------------------------")
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -127,29 +113,15 @@ func (s *Server) OTELMetricsHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Content-Type: %s\n", r.Header.Get("Content-Type"))
 	fmt.Printf("Content-Length: %d bytes\n", len(body))
 
-	// Extract trace ID and service name for better logging
 	traceID := database.ExtractTraceID(body)
-	serviceName := database.ExtractServiceName(body)
 
 	// Store raw JSON in database
 	id, err := s.db.InsertMetric(traceID, string(body))
 	if err != nil {
 		fmt.Printf("❌ Failed to store metric in database: %v\n", err)
 	} else {
-		fmt.Printf("✅ Metric stored in database (ID: %d, TraceID: %s, Service: %s)\n", id, traceID, serviceName)
+		fmt.Printf("✅ Metric stored in database (ID: %d, TraceID: %s)\n", id, traceID)
 	}
-
-	// Display payload (truncated if too long)
-	if len(body) > 0 && len(body) < 1000 {
-		if pretty, err := database.PrettyPrintJSON(body); err == nil {
-			fmt.Printf("Payload:\n%s\n", pretty)
-		} else {
-			fmt.Printf("Payload:\n%s\n", string(body))
-		}
-	} else if len(body) >= 1000 {
-		fmt.Printf("Payload (truncated):\n%s...\n", string(body[:1000]))
-	}
-	fmt.Println("----------------------------------------")
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -174,29 +146,15 @@ func (s *Server) OTELTracesHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Content-Type: %s\n", r.Header.Get("Content-Type"))
 	fmt.Printf("Content-Length: %d bytes\n", len(body))
 
-	// Extract trace ID and service name for better logging
 	traceID := database.ExtractTraceID(body)
-	serviceName := database.ExtractServiceName(body)
 
 	// Store raw JSON in database
 	id, err := s.db.InsertTrace(traceID, string(body))
 	if err != nil {
 		fmt.Printf("❌ Failed to store trace in database: %v\n", err)
 	} else {
-		fmt.Printf("✅ Trace stored in database (ID: %d, TraceID: %s, Service: %s)\n", id, traceID, serviceName)
+		fmt.Printf("✅ Trace stored in database (ID: %d, TraceID: %s)\n", id, traceID)
 	}
-
-	// Display payload (truncated if too long)
-	if len(body) > 0 && len(body) < 1000 {
-		if pretty, err := database.PrettyPrintJSON(body); err == nil {
-			fmt.Printf("Payload:\n%s\n", pretty)
-		} else {
-			fmt.Printf("Payload:\n%s\n", string(body))
-		}
-	} else if len(body) >= 1000 {
-		fmt.Printf("Payload (truncated):\n%s...\n", string(body[:1000]))
-	}
-	fmt.Println("----------------------------------------")
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
