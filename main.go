@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -87,19 +86,7 @@ type execMsg struct {
 // runNpmDev executes npm run dev command
 func runNpmDev() tea.Cmd {
 	return func() tea.Msg {
-		// Create a context that can be cancelled
-		ctx, cancel := context.WithCancel(context.Background())
-		
-		// Set up signal handling for this command
-		sigChan := make(chan os.Signal, 1)
-		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-		
-		go func() {
-			<-sigChan
-			cancel()
-		}()
-		
-		cmd := exec.CommandContext(ctx, "npm", "run", "dev")
+		cmd := exec.Command("npm", "run", "dev")
 		
 		// Inherit all environment variables from parent process
 		cmd.Env = os.Environ()
@@ -180,8 +167,28 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case execMsg:
 		m.executing = true
 		m.currentCmd = msg.cmd
+		
+		// Set up signal handling for the child process
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+		
+		// Handle signals in a goroutine
+		go func() {
+			<-sigChan
+			if msg.cmd.Process != nil {
+				// Kill the entire process group
+				pgid, err := syscall.Getpgid(msg.cmd.Process.Pid)
+				if err == nil {
+					syscall.Kill(-pgid, syscall.SIGTERM)
+				}
+			}
+		}()
+		
 		// Use tea.ExecProcess to suspend the UI and run the command
 		return m, tea.ExecProcess(msg.cmd, func(err error) tea.Msg {
+			// Stop signal notifications for this command
+			signal.Stop(sigChan)
+			close(sigChan)
 			return commandExecutedMsg{
 				output: "",
 				err:    err,
