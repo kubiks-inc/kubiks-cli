@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -80,53 +78,30 @@ type commandStartedMsg struct {
 	cmd *exec.Cmd
 }
 
-// streamOutput reads from a reader and prints to stdout
-func streamOutput(reader io.Reader, prefix string) {
-	scanner := bufio.NewScanner(reader)
-	for scanner.Scan() {
-		fmt.Printf("%s%s\n", prefix, scanner.Text())
-	}
+// execMsg tells the UI to suspend and run a command
+type execMsg struct {
+	cmd *exec.Cmd
 }
 
 // runNpmDev executes npm run dev command
 func runNpmDev() tea.Cmd {
 	return func() tea.Msg {
 		cmd := exec.Command("npm", "run", "dev")
-		// Set process group to allow killing child processes
-		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 		
-		// Get stdout and stderr pipes
-		stdout, err := cmd.StdoutPipe()
-		if err != nil {
-			return commandExecutedMsg{
-				output: "",
-				err:    err,
-			}
+		// Inherit all environment variables from parent process
+		cmd.Env = os.Environ()
+		
+		// Set working directory to current directory
+		cmd.Dir, _ = os.Getwd()
+		
+		// Set process group for proper signal handling
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			Setpgid: true,
+			Pgid:    0,
 		}
 		
-		stderr, err := cmd.StderrPipe()
-		if err != nil {
-			return commandExecutedMsg{
-				output: "",
-				err:    err,
-			}
-		}
-		
-		// Start the command
-		err = cmd.Start()
-		if err != nil {
-			return commandExecutedMsg{
-				output: "",
-				err:    err,
-			}
-		}
-		
-		// Stream output in goroutines
-		go streamOutput(stdout, "")
-		go streamOutput(stderr, "")
-		
-		// Send message that command started
-		return commandStartedMsg{cmd: cmd}
+		// Return the command to be executed with suspended UI
+		return execMsg{cmd: cmd}
 	}
 }
 
@@ -189,24 +164,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.lastError = nil
 		}
 
-	case commandStartedMsg:
+	case execMsg:
+		m.executing = true
 		m.currentCmd = msg.cmd
-		// Wait for the command to complete
-		return m, func() tea.Msg {
-			err := msg.cmd.Wait()
-			var output []byte
-			if err != nil {
-				// Try to get any output even if there was an error
-				if msg.cmd.Stdout != nil {
-					// Note: For simplicity, we're not capturing output in this version
-					// In a real implementation, you'd want to pipe stdout/stderr
-				}
-			}
+		// Use tea.ExecProcess to suspend the UI and run the command
+		return m, tea.ExecProcess(msg.cmd, func(err error) tea.Msg {
 			return commandExecutedMsg{
-				output: string(output),
+				output: "",
 				err:    err,
 			}
-		}
+		})
 
 	case commandExecutedMsg:
 		m.executing = false
