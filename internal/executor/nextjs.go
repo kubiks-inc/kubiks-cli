@@ -7,10 +7,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
-
-	tea "github.com/charmbracelet/bubbletea"
-
-	"github.com/kubiks-inc/kubiks-cli/pkg/types"
 )
 
 // NextJSExecutor handles execution of Next.js applications with OpenTelemetry instrumentation
@@ -52,30 +48,7 @@ func (e *NextJSExecutor) ensureInstrumentationFile() error {
 	return nil
 }
 
-// Execute runs the Next.js development server with OpenTelemetry instrumentation (for TUI)
-func (e *NextJSExecutor) Execute() tea.Cmd {
-	return func() tea.Msg {
-		// Pre-validate the environment before attempting to run
-		if err := e.validateEnvironment(); err != nil {
-			return types.CommandExecutedMsg{
-				Output: "",
-				Err:    err,
-			}
-		}
 
-		cmd, err := e.createCommand()
-		if err != nil {
-			return types.CommandExecutedMsg{
-				Output: "",
-				Err:    err,
-			}
-		}
-
-		// For TUI mode, we need to run in a way that allows error capture
-		// but still provides interactive experience
-		return types.ExecMsg{Cmd: cmd}
-	}
-}
 
 // RunDirect runs the Next.js development server directly without TUI wrapper
 func (e *NextJSExecutor) RunDirect() error {

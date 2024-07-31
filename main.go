@@ -4,49 +4,12 @@ import (
 	"fmt"
 	"os"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 
 	"github.com/kubiks-inc/kubiks-cli/internal/commands"
-	"github.com/kubiks-inc/kubiks-cli/internal/ui"
-	"github.com/kubiks-inc/kubiks-cli/pkg/types"
 )
 
-// initializeCommands sets up all available commands for TUI
-func initializeCommands() []types.Command {
-	devCmd := commands.NewDevCommand()
-	serverCmd := commands.NewServerCommand()
 
-	return []types.Command{
-		devCmd.GetCommand(),
-		serverCmd.GetCommand(),
-		{
-			Name:        "exit",
-			Description: "Exit the application",
-			Action: func() tea.Cmd {
-				return tea.Quit
-			},
-		},
-	}
-}
-
-// runTUI starts the interactive terminal UI
-func runTUI() error {
-	// Initialize commands
-	commands := initializeCommands()
-
-	// Create a new UI model
-	model := ui.NewModel(commands)
-
-	// Create a new Bubble Tea program
-	p := tea.NewProgram(model)
-
-	// Run the program
-	if _, err := p.Run(); err != nil {
-		return fmt.Errorf("TUI error: %v", err)
-	}
-	return nil
-}
 
 func main() {
 	var rootCmd = &cobra.Command{
@@ -54,11 +17,8 @@ func main() {
 		Short: "Kubiks CLI - OpenTelemetry and development server management",
 		Long:  `Kubiks CLI provides tools for managing OpenTelemetry data and development servers`,
 		Run: func(cmd *cobra.Command, args []string) {
-			// Default behavior: run TUI when no subcommands are provided
-			if err := runTUI(); err != nil {
-				fmt.Printf("Error: %v\n", err)
-				os.Exit(1)
-			}
+			// Default behavior: show help when no subcommands are provided
+			cmd.Help()
 		},
 	}
 

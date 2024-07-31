@@ -3,8 +3,6 @@ package commands
 import (
 	"fmt"
 
-	tea "github.com/charmbracelet/bubbletea"
-
 	"github.com/kubiks-inc/kubiks-cli/internal/detector"
 	"github.com/kubiks-inc/kubiks-cli/internal/executor"
 	"github.com/kubiks-inc/kubiks-cli/pkg/types"
@@ -31,30 +29,7 @@ func NewDevCommand() *DevCommand {
 	}
 }
 
-// Execute runs the development server (for TUI)
-func (c *DevCommand) Execute() tea.Cmd {
-	return func() tea.Msg {
-		// Check if this is a supported project
-		isSupported, err := c.detector.IsSupported()
-		if !isSupported {
-			return types.CommandExecutedMsg{
-				Output: "",
-				Err:    fmt.Errorf("only %s applications are supported. %v", c.detector.GetProjectType(), err),
-			}
-		}
 
-		// Check if executor is available
-		if c.executor == nil {
-			return types.CommandExecutedMsg{
-				Output: "",
-				Err:    fmt.Errorf("NextJS executor not initialized"),
-			}
-		}
-
-		// Use the executor to run the command
-		return c.executor.Execute()()
-	}
-}
 
 // RunDirect runs the development server directly without TUI wrapper
 func (c *DevCommand) RunDirect() error {
@@ -73,11 +48,4 @@ func (c *DevCommand) RunDirect() error {
 	return c.executor.RunDirect()
 }
 
-// GetCommand returns the command definition for the UI
-func (c *DevCommand) GetCommand() types.Command {
-	return types.Command{
-		Name:        "run app",
-		Description: "Run Next.js project with OpenTelemetry instrumentation",
-		Action:      c.Execute,
-	}
-}
+

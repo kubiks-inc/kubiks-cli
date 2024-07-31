@@ -4,9 +4,10 @@ A command-line interface for managing development workflows with Next.js applica
 
 ## Features
 
-- Interactive terminal UI built with Bubble Tea
+- Command-line interface built with Cobra
 - Next.js project detection
 - Development server management
+- OpenTelemetry data collection and MCP server
 - Proper signal handling and process cleanup
 
 ## Project Structure
@@ -17,12 +18,13 @@ kubiks-cli/
 ├── go.mod                  # Go module definition
 ├── internal/               # Private application packages
 │   ├── commands/           # Command implementations
-│   │   └── dev.go         # Development server command
+│   │   ├── dev.go         # Development server command
+│   │   └── server.go      # OTEL and MCP server command
 │   ├── detector/           # Project type detection
 │   │   └── nextjs.go      # Next.js project detector
-│   └── ui/                # User interface components
-│       ├── model.go       # Bubble Tea model
-│       └── styles.go      # UI styling definitions
+│   ├── executor/           # Command execution logic
+│   ├── handlers/           # HTTP handlers for OTEL
+│   └── mcp/               # MCP server implementation
 └── pkg/                   # Public packages
     └── types/             # Shared types and interfaces
         └── types.go       # Common type definitions
@@ -36,16 +38,33 @@ The project follows Go best practices with a clean separation of concerns:
 - **`internal/`**: Private packages not meant to be imported by other projects
   - **`commands/`**: Business logic for different CLI commands
   - **`detector/`**: Project type detection logic
-  - **`ui/`**: User interface components and styling
+  - **`executor/`**: Command execution and platform-specific logic
+  - **`handlers/`**: HTTP handlers for OpenTelemetry endpoints
+  - **`mcp/`**: Model Context Protocol server implementation
 - **`pkg/`**: Public packages that could be reused by other projects
   - **`types/`**: Shared interfaces and data structures
 
 ## Usage
 
-1. Navigate to a Next.js project directory
-2. Run `./kubiks`
-3. Use arrow keys to navigate and Enter to execute commands
-4. Press `q` or `Ctrl+C` to quit
+### Commands
+
+- `kubiks run server` - Start the OpenTelemetry and MCP servers
+- `kubiks run nextjs` - Start a Next.js development server with OpenTelemetry instrumentation
+- `kubiks help` - Show help for available commands
+
+### Examples
+
+```bash
+# Start the OTEL and MCP servers
+kubiks run server
+
+# Start Next.js development server with instrumentation
+cd /path/to/nextjs/project
+kubiks run nextjs
+
+# Show help
+kubiks help
+```
 
 ## Development
 
@@ -70,26 +89,21 @@ go build -o bin/kubiks
 - `make build-all` - Build for multiple platforms
 - `make help` - Show all available commands
 
-### Navigation
-- Press **↑/k** to move up in the menu
-- Press **↓/j** to move down in the menu
-- Press **Enter** or **Space** to execute the selected command
+### Server Management
+- The OTEL server runs on port 7432 by default
+- The MCP server runs on port 7433 by default
+- Use Ctrl+C to stop running servers gracefully
 
-### Help & Utilities
-- Press **h** or **?** to toggle help information
-- Press **c** to clear the last command output
-- Press **q**, **Ctrl+C**, or **Esc** to quit
-
-### Command Execution
-1. Navigate to the desired command using arrow keys
-2. Press Enter to execute
-3. Watch the real-time execution feedback
-4. View results (errors will be displayed with full output)
+### Next.js Development
+- Ensure you're in a Next.js project directory before running `kubiks run nextjs`
+- The instrumentation will automatically inject OpenTelemetry into your development server
+- Data will be sent to the OTEL server (start with `kubiks run server` first)
 
 ## Dependencies
 
-- [Bubble Tea](https://github.com/charmbracelet/bubbletea) - Terminal UI framework
-- [Lipgloss](https://github.com/charmbracelet/lipgloss) - Style definitions for terminal UIs
+- [Cobra](https://github.com/spf13/cobra) - Modern CLI framework for Go
+- [MCP-Go](https://github.com/mark3labs/mcp-go) - Model Context Protocol implementation
+- [SQLite](https://github.com/mattn/go-sqlite3) - Database driver for OpenTelemetry data storage
 
 ## License
 

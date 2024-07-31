@@ -11,11 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
-
 	"github.com/kubiks-inc/kubiks-cli/internal/handlers"
 	"github.com/kubiks-inc/kubiks-cli/internal/mcp"
-	"github.com/kubiks-inc/kubiks-cli/pkg/types"
 )
 
 // ServerCommand handles server commands (OTEL, MCP, etc.)
@@ -32,21 +29,7 @@ func NewServerCommand() *ServerCommand {
 	}
 }
 
-// Execute runs the HTTP server with OTEL endpoints (for TUI)
-func (c *ServerCommand) Execute() tea.Cmd {
-	return func() tea.Msg {
-		if err := c.startServer(); err != nil {
-			return types.CommandExecutedMsg{
-				Output: "",
-				Err:    fmt.Errorf("failed to start server: %w", err),
-			}
-		}
-		return types.CommandExecutedMsg{
-			Output: "Server stopped",
-			Err:    nil,
-		}
-	}
-}
+
 
 // RunDirect runs the server directly without TUI wrapper
 func (c *ServerCommand) RunDirect() error {
@@ -152,11 +135,4 @@ func (c *ServerCommand) startServer() error {
 	return nil
 }
 
-// GetCommand returns the command definition for the UI
-func (c *ServerCommand) GetCommand() types.Command {
-	return types.Command{
-		Name:        "run server",
-		Description: fmt.Sprintf("Start OTEL server (port %s) and MCP server (port %s)", c.otelPort, c.mcpPort),
-		Action:      c.Execute,
-	}
-}
+
