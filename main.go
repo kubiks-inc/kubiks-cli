@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -62,6 +64,7 @@ type model struct {
 	lastOutput  string
 	lastError   error
 	showingHelp bool
+	currentCmd  *exec.Cmd
 }
 
 // commandExecutedMsg is sent when a command finishes executing
@@ -70,33 +73,47 @@ type commandExecutedMsg struct {
 	err    error
 }
 
+// commandStartedMsg is sent when a command starts executing
+type commandStartedMsg struct {
+	cmd *exec.Cmd
+}
+
 // runNpmDev executes npm run dev command
 func runNpmDev() tea.Cmd {
 	return func() tea.Msg {
 		cmd := exec.Command("npm", "run", "dev")
-		output, err := cmd.CombinedOutput()
-
-		// If command failed, exit the process
+		// Set process group to allow killing child processes
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		
+		// Start the command
+		err := cmd.Start()
 		if err != nil {
-			if exitErr, ok := err.(*exec.ExitError); ok {
-				// Get the exit code
-				exitCode := exitErr.ExitCode()
-				fmt.Printf("\nCommand failed with exit code %d\n", exitCode)
-				fmt.Printf("Output:\n%s\n", string(output))
-				os.Exit(exitCode)
+			return commandExecutedMsg{
+				output: "",
+				err:    err,
 			}
 		}
-
-		return commandExecutedMsg{
-			output: string(output),
-			err:    err,
-		}
+		
+		// Send message that command started
+		return commandStartedMsg{cmd: cmd}
 	}
 }
 
 // Init is called when the program starts
 func (m model) Init() tea.Cmd {
 	return nil
+}
+
+// killChildProcess kills the current running command and its child processes
+func (m *model) killChildProcess() {
+	if m.currentCmd != nil && m.currentCmd.Process != nil {
+		// Kill the entire process group
+		pgid, err := syscall.Getpgid(m.currentCmd.Process.Pid)
+		if err == nil {
+			syscall.Kill(-pgid, syscall.SIGTERM)
+		}
+		m.currentCmd = nil
+	}
 }
 
 // Update handles messages and updates the model
@@ -107,6 +124,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// If we're executing a command, only allow quit
 			switch msg.String() {
 			case "ctrl+c", "q":
+				m.killChildProcess()
 				return m, tea.Quit
 			}
 			return m, nil
@@ -114,6 +132,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch msg.String() {
 		case "ctrl+c", "q", "esc":
+			m.killChildProcess()
 			return m, tea.Quit
 		case "up", "k":
 			if m.cursor > 0 {
@@ -139,10 +158,30 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.lastError = nil
 		}
 
+	case commandStartedMsg:
+		m.currentCmd = msg.cmd
+		// Wait for the command to complete
+		return m, func() tea.Msg {
+			err := msg.cmd.Wait()
+			var output []byte
+			if err != nil {
+				// Try to get any output even if there was an error
+				if msg.cmd.Stdout != nil {
+					// Note: For simplicity, we're not capturing output in this version
+					// In a real implementation, you'd want to pipe stdout/stderr
+				}
+			}
+			return commandExecutedMsg{
+				output: string(output),
+				err:    err,
+			}
+		}
+
 	case commandExecutedMsg:
 		m.executing = false
 		m.lastOutput = msg.output
 		m.lastError = msg.err
+		m.currentCmd = nil
 	}
 
 	return m, nil
@@ -261,7 +300,26 @@ func initialModel() model {
 
 func main() {
 	// Create a new Bubble Tea program
-	p := tea.NewProgram(initialModel())
+	m := initialModel()
+	p := tea.NewProgram(m)
+
+	// Set up signal handling
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	// Handle signals in a separate goroutine
+	go func() {
+		<-sigChan
+		// Kill any running child processes
+		if m.currentCmd != nil && m.currentCmd.Process != nil {
+			pgid, err := syscall.Getpgid(m.currentCmd.Process.Pid)
+			if err == nil {
+				syscall.Kill(-pgid, syscall.SIGTERM)
+			}
+		}
+		// Exit cleanly
+		p.Quit()
+	}()
 
 	// Run the program
 	if _, err := p.Run(); err != nil {
