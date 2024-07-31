@@ -19,7 +19,7 @@ type ServerCommand struct {
 // NewServerCommand creates a new server command
 func NewServerCommand() *ServerCommand {
 	return &ServerCommand{
-		port: "8080",
+		port: "7432",
 	}
 }
 
