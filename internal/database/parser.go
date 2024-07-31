@@ -75,16 +75,14 @@ func findServiceName(data interface{}) string {
 	case map[string]interface{}:
 		// Check for resource attributes first (most common location)
 		if resource, ok := v["resource"].(map[string]interface{}); ok {
-			if attrs, ok := resource["attributes"].(map[string]interface{}); ok {
-				// Check for service.name attribute
-				if serviceName, ok := attrs["service.name"].(string); ok && serviceName != "" {
-					return serviceName
-				}
-				// Check for service_name attribute (alternative format)
-				if serviceName, ok := attrs["service_name"].(string); ok && serviceName != "" {
-					return serviceName
-				}
+			if serviceName := extractServiceNameFromAttributes(resource["attributes"]); serviceName != "" {
+				return serviceName
 			}
+		}
+
+		// Check for direct attributes (could be at any level)
+		if serviceName := extractServiceNameFromAttributes(v["attributes"]); serviceName != "" {
+			return serviceName
 		}
 
 		// Check for nested structures (resourceLogs, resourceMetrics, resourceSpans)
@@ -92,6 +90,28 @@ func findServiceName(data interface{}) string {
 			if resources, ok := v[key].([]interface{}); ok {
 				for _, resource := range resources {
 					if serviceName := findServiceName(resource); serviceName != "" {
+						return serviceName
+					}
+				}
+			}
+		}
+
+		// Check for scopeLogs/scopeMetrics and their nested records
+		for _, key := range []string{"scopeLogs", "scopeMetrics", "scopeSpans"} {
+			if scopes, ok := v[key].([]interface{}); ok {
+				for _, scope := range scopes {
+					if serviceName := findServiceName(scope); serviceName != "" {
+						return serviceName
+					}
+				}
+			}
+		}
+
+		// Check for log/metric/span records arrays
+		for _, key := range []string{"logRecords", "metricRecords", "spans"} {
+			if records, ok := v[key].([]interface{}); ok {
+				for _, record := range records {
+					if serviceName := findServiceName(record); serviceName != "" {
 						return serviceName
 					}
 				}
@@ -110,6 +130,37 @@ func findServiceName(data interface{}) string {
 		for _, item := range v {
 			if serviceName := findServiceName(item); serviceName != "" {
 				return serviceName
+			}
+		}
+	}
+
+	return ""
+}
+
+// extractServiceNameFromAttributes handles both map and array formats for OTEL attributes
+func extractServiceNameFromAttributes(attributes interface{}) string {
+	switch attrs := attributes.(type) {
+	case map[string]interface{}:
+		// Map format: {"service.name": "my-service"}
+		if serviceName, ok := attrs["service.name"].(string); ok && serviceName != "" {
+			return serviceName
+		}
+		if serviceName, ok := attrs["service_name"].(string); ok && serviceName != "" {
+			return serviceName
+		}
+
+	case []interface{}:
+		// Array format: [{"key": "service.name", "value": {"stringValue": "my-service"}}]
+		for _, attr := range attrs {
+			if attrMap, ok := attr.(map[string]interface{}); ok {
+				if key, ok := attrMap["key"].(string); ok && (key == "service.name" || key == "service_name") {
+					if value, ok := attrMap["value"].(map[string]interface{}); ok {
+						// Check for stringValue
+						if stringValue, ok := value["stringValue"].(string); ok && stringValue != "" {
+							return stringValue
+						}
+					}
+				}
 			}
 		}
 	}

@@ -59,87 +59,6 @@ func (db *DB) InsertTrace(traceID, data string) (int64, error) {
 	return id, nil
 }
 
-// GetRecentLogs retrieves recent log entries
-func (db *DB) GetRecentLogs(limit int) ([]*OTELRecord, error) {
-	query := `SELECT id, trace_id, timestamp, data FROM otel_logs ORDER BY timestamp DESC LIMIT ?`
-
-	rows, err := db.conn.Query(query, limit)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query logs: %w", err)
-	}
-	defer rows.Close()
-
-	var records []*OTELRecord
-	for rows.Next() {
-		record := &OTELRecord{}
-		err := rows.Scan(&record.ID, &record.TraceID, &record.Timestamp, &record.Data)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan log row: %w", err)
-		}
-		records = append(records, record)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating log rows: %w", err)
-	}
-
-	return records, nil
-}
-
-// GetRecentMetrics retrieves recent metric entries
-func (db *DB) GetRecentMetrics(limit int) ([]*OTELRecord, error) {
-	query := `SELECT id, trace_id, timestamp, data FROM otel_metrics ORDER BY timestamp DESC LIMIT ?`
-
-	rows, err := db.conn.Query(query, limit)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query metrics: %w", err)
-	}
-	defer rows.Close()
-
-	var records []*OTELRecord
-	for rows.Next() {
-		record := &OTELRecord{}
-		err := rows.Scan(&record.ID, &record.TraceID, &record.Timestamp, &record.Data)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan metric row: %w", err)
-		}
-		records = append(records, record)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating metric rows: %w", err)
-	}
-
-	return records, nil
-}
-
-// GetRecentTraces retrieves recent trace entries
-func (db *DB) GetRecentTraces(limit int) ([]*OTELRecord, error) {
-	query := `SELECT id, trace_id, timestamp, data FROM otel_traces ORDER BY timestamp DESC LIMIT ?`
-
-	rows, err := db.conn.Query(query, limit)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query traces: %w", err)
-	}
-	defer rows.Close()
-
-	var records []*OTELRecord
-	for rows.Next() {
-		record := &OTELRecord{}
-		err := rows.Scan(&record.ID, &record.TraceID, &record.Timestamp, &record.Data)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan trace row: %w", err)
-		}
-		records = append(records, record)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating trace rows: %w", err)
-	}
-
-	return records, nil
-}
-
 // GetStats returns database statistics
 func (db *DB) GetStats() (map[string]int64, error) {
 	stats := make(map[string]int64)
@@ -167,90 +86,9 @@ func (db *DB) BeginTx() (*sql.Tx, error) {
 	return db.conn.Begin()
 }
 
-// GetLogsPaginated retrieves logs with pagination
-func (db *DB) GetLogsPaginated(limit, offset int) ([]*OTELRecord, error) {
-	query := `SELECT id, trace_id, timestamp, data FROM otel_logs ORDER BY timestamp DESC LIMIT ? OFFSET ?`
-
-	rows, err := db.conn.Query(query, limit, offset)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query logs: %w", err)
-	}
-	defer rows.Close()
-
-	var records []*OTELRecord
-	for rows.Next() {
-		record := &OTELRecord{}
-		err := rows.Scan(&record.ID, &record.TraceID, &record.Timestamp, &record.Data)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan log row: %w", err)
-		}
-		records = append(records, record)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating log rows: %w", err)
-	}
-
-	return records, nil
-}
-
-// GetMetricsPaginated retrieves metrics with pagination
-func (db *DB) GetMetricsPaginated(limit, offset int) ([]*OTELRecord, error) {
-	query := `SELECT id, trace_id, timestamp, data FROM otel_metrics ORDER BY timestamp DESC LIMIT ? OFFSET ?`
-
-	rows, err := db.conn.Query(query, limit, offset)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query metrics: %w", err)
-	}
-	defer rows.Close()
-
-	var records []*OTELRecord
-	for rows.Next() {
-		record := &OTELRecord{}
-		err := rows.Scan(&record.ID, &record.TraceID, &record.Timestamp, &record.Data)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan metric row: %w", err)
-		}
-		records = append(records, record)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating metric rows: %w", err)
-	}
-
-	return records, nil
-}
-
-// GetTracesPaginated retrieves traces with pagination
-func (db *DB) GetTracesPaginated(limit, offset int) ([]*OTELRecord, error) {
-	query := `SELECT id, trace_id, timestamp, data FROM otel_traces ORDER BY timestamp DESC LIMIT ? OFFSET ?`
-
-	rows, err := db.conn.Query(query, limit, offset)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query traces: %w", err)
-	}
-	defer rows.Close()
-
-	var records []*OTELRecord
-	for rows.Next() {
-		record := &OTELRecord{}
-		err := rows.Scan(&record.ID, &record.TraceID, &record.Timestamp, &record.Data)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan trace row: %w", err)
-		}
-		records = append(records, record)
-	}
-
-	if err = rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating trace rows: %w", err)
-	}
-
-	return records, nil
-}
-
 // getPaginatedByService is a generic function to retrieve OTEL records with pagination filtered by service name
 func (db *DB) getPaginatedByService(tableName, serviceName string, limit, offset int) ([]*OTELRecord, error) {
-	query := fmt.Sprintf(`SELECT id, trace_id, timestamp, data FROM %s 
+	query := fmt.Sprintf(`SELECT id, trace_id, servicename, timestamp, data FROM %s 
 		WHERE servicename = ? 
 		ORDER BY timestamp DESC LIMIT ? OFFSET ?`, tableName)
 
@@ -263,7 +101,7 @@ func (db *DB) getPaginatedByService(tableName, serviceName string, limit, offset
 	var records []*OTELRecord
 	for rows.Next() {
 		record := &OTELRecord{}
-		err := rows.Scan(&record.ID, &record.TraceID, &record.Timestamp, &record.Data)
+		err := rows.Scan(&record.ID, &record.TraceID, &record.ServiceName, &record.Timestamp, &record.Data)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan %s row: %w", tableName, err)
 		}
