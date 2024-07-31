@@ -112,7 +112,7 @@ func (s *KubiksMCP) getLogsTool() mcp.Tool {
 				},
 				"limit": map[string]interface{}{
 					"type":        "number",
-					"description": "Number of logs to fetch (default: 10, max: 100)",
+					"description": "Number of logs to fetch (default: 10, max: 1000)",
 				},
 				"offset": map[string]interface{}{
 					"type":        "number",
@@ -138,7 +138,7 @@ func (s *KubiksMCP) getTracesTool() mcp.Tool {
 				},
 				"limit": map[string]interface{}{
 					"type":        "number",
-					"description": "Number of traces to fetch (default: 10, max: 100)",
+					"description": "Number of traces to fetch (default: 10, max: 1000)",
 				},
 				"offset": map[string]interface{}{
 					"type":        "number",
@@ -164,7 +164,7 @@ func (s *KubiksMCP) getMetricsTool() mcp.Tool {
 				},
 				"limit": map[string]interface{}{
 					"type":        "number",
-					"description": "Number of metrics to fetch (default: 10, max: 100)",
+					"description": "Number of metrics to fetch (default: 10, max: 1000)",
 				},
 				"offset": map[string]interface{}{
 					"type":        "number",
@@ -199,8 +199,8 @@ func (s *KubiksMCP) handleGetLogs(ctx context.Context, request mcp.CallToolReque
 
 			if l, ok := args["limit"].(float64); ok {
 				limit = int(l)
-				if limit > 100 {
-					limit = 100
+				if limit > 1000 {
+					limit = 1000
 				}
 			}
 
@@ -277,8 +277,8 @@ func (s *KubiksMCP) handleGetTraces(ctx context.Context, request mcp.CallToolReq
 
 			if l, ok := args["limit"].(float64); ok {
 				limit = int(l)
-				if limit > 100 {
-					limit = 100
+				if limit > 1000 {
+					limit = 1000
 				}
 			}
 
@@ -355,8 +355,8 @@ func (s *KubiksMCP) handleGetMetrics(ctx context.Context, request mcp.CallToolRe
 
 			if l, ok := args["limit"].(float64); ok {
 				limit = int(l)
-				if limit > 100 {
-					limit = 100
+				if limit > 1000 {
+					limit = 1000
 				}
 			}
 
