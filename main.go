@@ -3,13 +3,12 @@ package main
 import (
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/spf13/cobra"
 
 	"github.com/kubiks-inc/kubiks-cli/internal/commands"
 )
-
-
 
 func main() {
 	var rootCmd = &cobra.Command{
@@ -17,8 +16,43 @@ func main() {
 		Short: "Kubiks CLI - OpenTelemetry and development server management",
 		Long:  `Kubiks CLI provides tools for managing OpenTelemetry data and development servers`,
 		Run: func(cmd *cobra.Command, args []string) {
-			// Default behavior: show help when no subcommands are provided
-			cmd.Help()
+			// Default behavior: start both server and NextJS
+			fmt.Println("🚀 Starting Kubiks with server and NextJS...")
+
+			var wg sync.WaitGroup
+			errChan := make(chan error, 2)
+
+			// Start server in goroutine
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				serverCommand := commands.NewServerCommand()
+				if err := serverCommand.RunDirect(); err != nil {
+					errChan <- fmt.Errorf("server error: %v", err)
+				}
+			}()
+
+			// Start NextJS in goroutine
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				devCommand := commands.NewDevCommand()
+				if err := devCommand.RunDirect(); err != nil {
+					errChan <- fmt.Errorf("NextJS error: %v", err)
+				}
+			}()
+
+			// Wait for any error or completion
+			go func() {
+				wg.Wait()
+				close(errChan)
+			}()
+
+			// Check for errors
+			if err := <-errChan; err != nil {
+				fmt.Printf("Error: %v\n", err)
+				os.Exit(1)
+			}
 		},
 	}
 
