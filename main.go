@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -86,7 +87,19 @@ type execMsg struct {
 // runNpmDev executes npm run dev command
 func runNpmDev() tea.Cmd {
 	return func() tea.Msg {
-		cmd := exec.Command("npm", "run", "dev")
+		// Create a context that can be cancelled
+		ctx, cancel := context.WithCancel(context.Background())
+		
+		// Set up signal handling for this command
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+		
+		go func() {
+			<-sigChan
+			cancel()
+		}()
+		
+		cmd := exec.CommandContext(ctx, "npm", "run", "dev")
 		
 		// Inherit all environment variables from parent process
 		cmd.Env = os.Environ()
@@ -300,24 +313,6 @@ func main() {
 	// Create a new Bubble Tea program
 	m := initialModel()
 	p := tea.NewProgram(m)
-
-	// Set up signal handling
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-
-	// Handle signals in a separate goroutine
-	go func() {
-		<-sigChan
-		// Kill any running child processes
-		if m.currentCmd != nil && m.currentCmd.Process != nil {
-			pgid, err := syscall.Getpgid(m.currentCmd.Process.Pid)
-			if err == nil {
-				syscall.Kill(-pgid, syscall.SIGTERM)
-			}
-		}
-		// Exit cleanly
-		p.Quit()
-	}()
 
 	// Run the program
 	if _, err := p.Run(); err != nil {

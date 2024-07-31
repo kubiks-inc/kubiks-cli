@@ -5,6 +5,7 @@
 *.so
 *.dylib
 kubiks-cli
+kubiks
 
 # Test binary, built with `go test -c`
 *.test
