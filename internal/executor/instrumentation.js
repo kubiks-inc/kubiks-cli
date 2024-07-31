@@ -1,8 +1,13 @@
 // Copyright The OpenTelemetry Authors
 // SPDX-License-Identifier: Apache-2.0
 
-// Load environment variables first
-require('dotenv').config({ path: '.env.local' });
+// Load environment variables first (optional)
+try {
+  require('dotenv').config({ path: '.env.local' });
+} catch (e) {
+  // dotenv is optional - continue without it if not available
+  console.log('dotenv not available, skipping .env.local loading');
+}
 
 const opentelemetry = require('@opentelemetry/sdk-node');
 const { getNodeAutoInstrumentations } = require('@opentelemetry/auto-instrumentations-node');

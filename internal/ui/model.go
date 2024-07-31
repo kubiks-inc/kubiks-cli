@@ -105,16 +105,39 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			killProcessGroup(msg.Cmd)
 		}()
 
-		// Use tea.ExecProcess to suspend the UI and run the command
-		return m, tea.ExecProcess(msg.Cmd, func(err error) tea.Msg {
-			// Stop signal notifications for this command
+		// For better error reporting, we'll capture output differently
+		return m, func() tea.Msg {
+			// Set up pipes to capture both stdout and stderr
+			var output strings.Builder
+			var errOutput strings.Builder
+
+			msg.Cmd.Stdout = &output
+			msg.Cmd.Stderr = &errOutput
+
+			// Run the command
+			err := msg.Cmd.Run()
+
+			// Stop signal notifications
 			signal.Stop(sigChan)
 			close(sigChan)
+
+			// Combine outputs for display
+			var combinedOutput string
+			if output.Len() > 0 {
+				combinedOutput += output.String()
+			}
+			if errOutput.Len() > 0 {
+				if combinedOutput != "" {
+					combinedOutput += "\n"
+				}
+				combinedOutput += errOutput.String()
+			}
+
 			return types.CommandExecutedMsg{
-				Output: "",
+				Output: combinedOutput,
 				Err:    err,
 			}
-		})
+		}
 
 	case types.CommandExecutedMsg:
 		m.executing = false

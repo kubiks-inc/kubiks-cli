@@ -59,6 +59,14 @@ func (e *NextJSExecutor) ensureInstrumentationFile() error {
 // Execute runs the Next.js development server with OpenTelemetry instrumentation (for TUI)
 func (e *NextJSExecutor) Execute() tea.Cmd {
 	return func() tea.Msg {
+		// Pre-validate the environment before attempting to run
+		if err := e.validateEnvironment(); err != nil {
+			return types.CommandExecutedMsg{
+				Output: "",
+				Err:    err,
+			}
+		}
+
 		cmd, err := e.createCommand()
 		if err != nil {
 			return types.CommandExecutedMsg{
@@ -67,13 +75,19 @@ func (e *NextJSExecutor) Execute() tea.Cmd {
 			}
 		}
 
-		// Return the command to be executed with suspended UI
+		// For TUI mode, we need to run in a way that allows error capture
+		// but still provides interactive experience
 		return types.ExecMsg{Cmd: cmd}
 	}
 }
 
 // RunDirect runs the Next.js development server directly without TUI wrapper
 func (e *NextJSExecutor) RunDirect() error {
+	// Pre-validate the environment
+	if err := e.validateEnvironment(); err != nil {
+		return err
+	}
+
 	fmt.Println("🚀 Starting Next.js development server with OpenTelemetry instrumentation...")
 	fmt.Printf("📊 Instrumentation file: %s\n", e.instrumentationPath)
 
@@ -126,6 +140,31 @@ func (e *NextJSExecutor) createCommand() (*exec.Cmd, error) {
 	configurePlatformSpecific(cmd)
 
 	return cmd, nil
+}
+
+// validateEnvironment checks for common issues before running the command
+func (e *NextJSExecutor) validateEnvironment() error {
+	// Check if we're in a directory with package.json
+	if _, err := os.Stat("package.json"); os.IsNotExist(err) {
+		return fmt.Errorf("package.json not found in current directory. Please run this command from a Next.js project root")
+	}
+
+	// Check if npm is available
+	if _, err := exec.LookPath("npm"); err != nil {
+		return fmt.Errorf("npm not found in PATH. Please install Node.js and npm")
+	}
+
+	// Check if node_modules exists
+	if _, err := os.Stat("node_modules"); os.IsNotExist(err) {
+		return fmt.Errorf("node_modules not found. Please run 'npm install' first")
+	}
+
+	// Check if the instrumentation file exists and can be created
+	if err := e.ensureInstrumentationFile(); err != nil {
+		return fmt.Errorf("failed to create instrumentation file: %w", err)
+	}
+
+	return nil
 }
 
 // GetInstrumentationPath returns the path to the instrumentation file
