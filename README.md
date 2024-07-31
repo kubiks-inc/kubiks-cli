@@ -1,59 +1,59 @@
 # Kubiks CLI
 
-A command-line interface built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) 🫧
-
-## About
-
-Kubiks CLI is a terminal user interface (TUI) application that provides an interactive command menu system. Built with the powerful Bubble Tea framework, it offers a beautiful and intuitive way to execute development commands from the terminal.
+A command-line interface for managing development workflows with Next.js applications.
 
 ## Features
 
-- 🎨 Beautiful terminal UI with colors and styling
-- ⌨️ Interactive keyboard navigation
-- 🚀 Built with Go and Bubble Tea framework
-- 🎯 Clean, modern architecture following The Elm Architecture pattern
-- 📋 Command menu system for easy command selection
-- ⚡ Asynchronous command execution with proper error handling
-- 🔄 Real-time command execution feedback
+- Interactive terminal UI built with Bubble Tea
+- Next.js project detection
+- Development server management
+- Proper signal handling and process cleanup
 
-## Available Commands
+## Project Structure
 
-### `run`
-Executes `npm run dev` in the current directory. This command:
-- Suppresses output on successful execution (exit code 0)
-- Shows full output and error details if the command fails (non-zero exit code)
-- Provides visual feedback during execution
-
-### `exit`
-Exits the application gracefully.
-
-## Installation
-
-### From Source
-
-```bash
-git clone https://github.com/kubiks-inc/kubiks-cli.git
-cd kubiks-cli
-go build -o kubiks-cli
-./kubiks-cli
+```
+kubiks-cli/
+├── main.go                 # Application entry point
+├── go.mod                  # Go module definition
+├── internal/               # Private application packages
+│   ├── commands/           # Command implementations
+│   │   └── dev.go         # Development server command
+│   ├── detector/           # Project type detection
+│   │   └── nextjs.go      # Next.js project detector
+│   └── ui/                # User interface components
+│       ├── model.go       # Bubble Tea model
+│       └── styles.go      # UI styling definitions
+└── pkg/                   # Public packages
+    └── types/             # Shared types and interfaces
+        └── types.go       # Common type definitions
 ```
 
-### Development
+## Architecture
 
-```bash
-# Run directly with Go
-go run main.go
+The project follows Go best practices with a clean separation of concerns:
 
-# Build the binary
-go build -o kubiks-cli
-
-# Run the binary
-./kubiks-cli
-```
+- **`main.go`**: Entry point that wires everything together
+- **`internal/`**: Private packages not meant to be imported by other projects
+  - **`commands/`**: Business logic for different CLI commands
+  - **`detector/`**: Project type detection logic
+  - **`ui/`**: User interface components and styling
+- **`pkg/`**: Public packages that could be reused by other projects
+  - **`types/`**: Shared interfaces and data structures
 
 ## Usage
 
-Once you run the application:
+1. Navigate to a Next.js project directory
+2. Run `./kubiks`
+3. Use arrow keys to navigate and Enter to execute commands
+4. Press `q` or `Ctrl+C` to quit
+
+## Development
+
+To build the project:
+
+```bash
+go build -o kubiks
+```
 
 ### Navigation
 - Press **↑/k** to move up in the menu
@@ -73,36 +73,8 @@ Once you run the application:
 
 ## Dependencies
 
-- [Bubble Tea](https://github.com/charmbracelet/bubbletea) - TUI framework
-- [Lip Gloss](https://github.com/charmbracelet/lipgloss) - Styling library
-
-## Architecture
-
-This application follows the Bubble Tea framework structure:
-
-- **Model**: Represents the application state including commands, cursor position, and execution status
-- **Init**: Initializes the application
-- **Update**: Handles messages (keypresses, command results) and updates the model
-- **View**: Renders the UI based on the current state
-
-### Command System
-
-Commands are defined as structs with:
-- `name`: Display name in the menu
-- `description`: Help text describing what the command does
-- `action`: Function that returns a Bubble Tea command to execute
-
-## Error Handling
-
-The CLI provides comprehensive error handling:
-- **Successful commands**: Shows success indicator, suppresses output unless needed
-- **Failed commands**: Shows error message with full command output
-- **Execution feedback**: Visual indicators during command execution
-- **Graceful exit**: Proper cleanup on quit
-
-## Testing
-
-A test `package.json` file is included for testing the `npm run dev` functionality. The dev script simulates a development server startup.
+- [Bubble Tea](https://github.com/charmbracelet/bubbletea) - Terminal UI framework
+- [Lipgloss](https://github.com/charmbracelet/lipgloss) - Style definitions for terminal UIs
 
 ## License
 
