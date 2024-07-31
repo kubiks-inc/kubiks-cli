@@ -1,13 +1,7 @@
-import path from 'path';
-
 const { KubiksSDK } = require('@kubiks/otel-nextjs');
 
-// Get current directory name as service name
-const currentDir = process.cwd();
-const serviceName = path.basename(currentDir);
-
-const sdk = new KubiksSDK({
-  service: serviceName,
-});
+// The service name will be automatically set from OTEL_SERVICE_NAME environment variable
+// which is set by kubiks-cli when starting the Next.js app
+const sdk = new KubiksSDK();
 
 sdk.start();

@@ -59,10 +59,38 @@ func (db *DB) initSchema() error {
 		}
 	}
 
+	// Run migrations for existing databases
+	if err := db.runMigrations(); err != nil {
+		return fmt.Errorf("failed to run migrations: %w", err)
+	}
+
 	// Create indexes
 	if _, err := db.conn.Exec(CreateIndexes); err != nil {
 		return fmt.Errorf("failed to create indexes: %w", err)
 	}
+
+	return nil
+}
+
+// runMigrations handles database schema migrations
+func (db *DB) runMigrations() error {
+	// Migration 1: Add servicename column if it doesn't exist
+	migrations := []string{
+		// Add servicename column to otel_logs if it doesn't exist
+		`ALTER TABLE otel_logs ADD COLUMN servicename TEXT DEFAULT 'unknown'`,
+		// Add servicename column to otel_metrics if it doesn't exist
+		`ALTER TABLE otel_metrics ADD COLUMN servicename TEXT DEFAULT 'unknown'`,
+		// Add servicename column to otel_traces if it doesn't exist
+		`ALTER TABLE otel_traces ADD COLUMN servicename TEXT DEFAULT 'unknown'`,
+	}
+
+	for _, migration := range migrations {
+		// Ignore errors for columns that already exist
+		db.conn.Exec(migration)
+	}
+
+	// Update the default value to NOT NULL for new rows after migration
+	// SQLite doesn't support modifying column constraints, so we'll handle this in insert operations
 
 	return nil
 }

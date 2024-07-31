@@ -64,7 +64,7 @@ func (s *KubiksMCP) Start(mux *http.ServeMux) error {
 	mux.Handle("/api/metrics", s.corsMiddleware(http.HandlerFunc(s.httpGetMetrics)))
 
 	fmt.Printf("🔗 MCP server listening on http://localhost:%s/mcp/sse\n", s.port)
-	fmt.Printf("🔗 Direct API endpoints: /api/logs, /api/traces, /api/metrics\n")
+	fmt.Printf("🔗 Direct API endpoints: /api/logs?servicename=<name>, /api/traces?servicename=<name>, /api/metrics?servicename=<name>\n")
 	return nil
 }
 
@@ -99,6 +99,7 @@ func (s *KubiksMCP) StartStandalone() (*http.Server, error) {
 	}
 
 	fmt.Printf("🔗 MCP server listening on http://localhost:%s/mcp/sse\n", s.port)
+	fmt.Printf("🔗 Direct API endpoints: /api/logs?servicename=<name>, /api/traces?servicename=<name>, /api/metrics?servicename=<name>\n")
 	return httpServer, nil
 }
 
@@ -122,6 +123,10 @@ func (s *KubiksMCP) getLogsTool() mcp.Tool {
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]interface{}{
+				"servicename": map[string]interface{}{
+					"type":        "string",
+					"description": "The service name to filter logs by. This should be the 'name' field from the package.json file of the Next.js project (e.g., 'my-nextjs-app', 'ecommerce-frontend'). The service name is automatically extracted from package.json when kubiks-cli instruments the application.",
+				},
 				"limit": map[string]interface{}{
 					"type":        "number",
 					"description": "Number of logs to fetch (default: 10, max: 100)",
@@ -131,6 +136,7 @@ func (s *KubiksMCP) getLogsTool() mcp.Tool {
 					"description": "Number of logs to skip (default: 0)",
 				},
 			},
+			Required: []string{"servicename"},
 		},
 	}
 }
@@ -143,6 +149,10 @@ func (s *KubiksMCP) getTracesTool() mcp.Tool {
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]interface{}{
+				"servicename": map[string]interface{}{
+					"type":        "string",
+					"description": "The service name to filter traces by. This should be the 'name' field from the package.json file of the Next.js project (e.g., 'my-nextjs-app', 'ecommerce-frontend'). The service name is automatically extracted from package.json when kubiks-cli instruments the application.",
+				},
 				"limit": map[string]interface{}{
 					"type":        "number",
 					"description": "Number of traces to fetch (default: 10, max: 100)",
@@ -152,6 +162,7 @@ func (s *KubiksMCP) getTracesTool() mcp.Tool {
 					"description": "Number of traces to skip (default: 0)",
 				},
 			},
+			Required: []string{"servicename"},
 		},
 	}
 }
@@ -164,6 +175,10 @@ func (s *KubiksMCP) getMetricsTool() mcp.Tool {
 		InputSchema: mcp.ToolInputSchema{
 			Type: "object",
 			Properties: map[string]interface{}{
+				"servicename": map[string]interface{}{
+					"type":        "string",
+					"description": "The service name to filter metrics by. This should be the 'name' field from the package.json file of the Next.js project (e.g., 'my-nextjs-app', 'ecommerce-frontend'). The service name is automatically extracted from package.json when kubiks-cli instruments the application.",
+				},
 				"limit": map[string]interface{}{
 					"type":        "number",
 					"description": "Number of metrics to fetch (default: 10, max: 100)",
@@ -173,6 +188,7 @@ func (s *KubiksMCP) getMetricsTool() mcp.Tool {
 					"description": "Number of metrics to skip (default: 0)",
 				},
 			},
+			Required: []string{"servicename"},
 		},
 	}
 }
@@ -181,9 +197,23 @@ func (s *KubiksMCP) getMetricsTool() mcp.Tool {
 func (s *KubiksMCP) handleGetLogs(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	limit := 10
 	offset := 0
+	var serviceName string
 
 	if request.Params.Arguments != nil {
 		if args, ok := request.Params.Arguments.(map[string]interface{}); ok {
+			// Extract required servicename parameter
+			if sn, ok := args["servicename"].(string); ok {
+				serviceName = sn
+			} else {
+				return &mcp.CallToolResult{
+					Content: []mcp.Content{mcp.TextContent{
+						Type: "text",
+						Text: "Error: servicename parameter is required and must be a string",
+					}},
+					IsError: true,
+				}, nil
+			}
+
 			if l, ok := args["limit"].(float64); ok {
 				limit = int(l)
 				if limit > 100 {
@@ -196,12 +226,27 @@ func (s *KubiksMCP) handleGetLogs(ctx context.Context, request mcp.CallToolReque
 			}
 		} else {
 			log.Printf("[MCP] ERROR: Failed to parse arguments as map[string]interface{}")
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{mcp.TextContent{
+					Type: "text",
+					Text: "Error: Failed to parse arguments",
+				}},
+				IsError: true,
+			}, nil
 		}
+	} else {
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{mcp.TextContent{
+				Type: "text",
+				Text: "Error: servicename parameter is required",
+			}},
+			IsError: true,
+		}, nil
 	}
 
-	logs, err := s.db.GetLogsPaginated(limit, offset)
+	logs, err := s.db.GetLogsPaginatedByService(serviceName, limit, offset)
 	if err != nil {
-		log.Printf("[MCP] ERROR: Database error while fetching logs: %v", err)
+		log.Printf("[MCP] ERROR: Database error while fetching logs for service %s: %v", serviceName, err)
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{mcp.TextContent{
 				Type: "text",
@@ -230,9 +275,23 @@ func (s *KubiksMCP) handleGetLogs(ctx context.Context, request mcp.CallToolReque
 func (s *KubiksMCP) handleGetTraces(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	limit := 10
 	offset := 0
+	var serviceName string
 
 	if request.Params.Arguments != nil {
 		if args, ok := request.Params.Arguments.(map[string]interface{}); ok {
+			// Extract required servicename parameter
+			if sn, ok := args["servicename"].(string); ok {
+				serviceName = sn
+			} else {
+				return &mcp.CallToolResult{
+					Content: []mcp.Content{mcp.TextContent{
+						Type: "text",
+						Text: "Error: servicename parameter is required and must be a string",
+					}},
+					IsError: true,
+				}, nil
+			}
+
 			if l, ok := args["limit"].(float64); ok {
 				limit = int(l)
 				if limit > 100 {
@@ -245,12 +304,27 @@ func (s *KubiksMCP) handleGetTraces(ctx context.Context, request mcp.CallToolReq
 			}
 		} else {
 			log.Printf("[MCP] ERROR: Failed to parse arguments as map[string]interface{}")
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{mcp.TextContent{
+					Type: "text",
+					Text: "Error: Failed to parse arguments",
+				}},
+				IsError: true,
+			}, nil
 		}
+	} else {
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{mcp.TextContent{
+				Type: "text",
+				Text: "Error: servicename parameter is required",
+			}},
+			IsError: true,
+		}, nil
 	}
 
-	traces, err := s.db.GetTracesPaginated(limit, offset)
+	traces, err := s.db.GetTracesPaginatedByService(serviceName, limit, offset)
 	if err != nil {
-		log.Printf("[MCP] ERROR: Database error while fetching traces: %v", err)
+		log.Printf("[MCP] ERROR: Database error while fetching traces for service %s: %v", serviceName, err)
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{mcp.TextContent{
 				Type: "text",
@@ -279,9 +353,23 @@ func (s *KubiksMCP) handleGetTraces(ctx context.Context, request mcp.CallToolReq
 func (s *KubiksMCP) handleGetMetrics(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	limit := 10
 	offset := 0
+	var serviceName string
 
 	if request.Params.Arguments != nil {
 		if args, ok := request.Params.Arguments.(map[string]interface{}); ok {
+			// Extract required servicename parameter
+			if sn, ok := args["servicename"].(string); ok {
+				serviceName = sn
+			} else {
+				return &mcp.CallToolResult{
+					Content: []mcp.Content{mcp.TextContent{
+						Type: "text",
+						Text: "Error: servicename parameter is required and must be a string",
+					}},
+					IsError: true,
+				}, nil
+			}
+
 			if l, ok := args["limit"].(float64); ok {
 				limit = int(l)
 				if limit > 100 {
@@ -294,12 +382,27 @@ func (s *KubiksMCP) handleGetMetrics(ctx context.Context, request mcp.CallToolRe
 			}
 		} else {
 			log.Printf("[MCP] ERROR: Failed to parse arguments as map[string]interface{}")
+			return &mcp.CallToolResult{
+				Content: []mcp.Content{mcp.TextContent{
+					Type: "text",
+					Text: "Error: Failed to parse arguments",
+				}},
+				IsError: true,
+			}, nil
 		}
+	} else {
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{mcp.TextContent{
+				Type: "text",
+				Text: "Error: servicename parameter is required",
+			}},
+			IsError: true,
+		}, nil
 	}
 
-	metrics, err := s.db.GetMetricsPaginated(limit, offset)
+	metrics, err := s.db.GetMetricsPaginatedByService(serviceName, limit, offset)
 	if err != nil {
-		log.Printf("[MCP] ERROR: Database error while fetching metrics: %v", err)
+		log.Printf("[MCP] ERROR: Database error while fetching metrics for service %s: %v", serviceName, err)
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{mcp.TextContent{
 				Type: "text",
@@ -358,6 +461,13 @@ func (s *KubiksMCP) httpGetLogs(w http.ResponseWriter, r *http.Request) {
 	// Parse query parameters
 	limit := 10
 	offset := 0
+	serviceName := r.URL.Query().Get("servicename")
+
+	// servicename is required
+	if serviceName == "" {
+		http.Error(w, `{"error": "servicename parameter is required"}`, http.StatusBadRequest)
+		return
+	}
 
 	if l := r.URL.Query().Get("limit"); l != "" {
 		if parsedLimit, err := strconv.Atoi(l); err == nil {
@@ -374,7 +484,7 @@ func (s *KubiksMCP) httpGetLogs(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	logs, err := s.db.GetLogsPaginated(limit, offset)
+	logs, err := s.db.GetLogsPaginatedByService(serviceName, limit, offset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": "Database error: %v"}`, err), http.StatusInternalServerError)
 		return
@@ -398,6 +508,13 @@ func (s *KubiksMCP) httpGetTraces(w http.ResponseWriter, r *http.Request) {
 	// Parse query parameters
 	limit := 10
 	offset := 0
+	serviceName := r.URL.Query().Get("servicename")
+
+	// servicename is required
+	if serviceName == "" {
+		http.Error(w, `{"error": "servicename parameter is required"}`, http.StatusBadRequest)
+		return
+	}
 
 	if l := r.URL.Query().Get("limit"); l != "" {
 		if parsedLimit, err := strconv.Atoi(l); err == nil {
@@ -414,7 +531,7 @@ func (s *KubiksMCP) httpGetTraces(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	traces, err := s.db.GetTracesPaginated(limit, offset)
+	traces, err := s.db.GetTracesPaginatedByService(serviceName, limit, offset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": "Database error: %v"}`, err), http.StatusInternalServerError)
 		return
@@ -438,6 +555,13 @@ func (s *KubiksMCP) httpGetMetrics(w http.ResponseWriter, r *http.Request) {
 	// Parse query parameters
 	limit := 10
 	offset := 0
+	serviceName := r.URL.Query().Get("servicename")
+
+	// servicename is required
+	if serviceName == "" {
+		http.Error(w, `{"error": "servicename parameter is required"}`, http.StatusBadRequest)
+		return
+	}
 
 	if l := r.URL.Query().Get("limit"); l != "" {
 		if parsedLimit, err := strconv.Atoi(l); err == nil {
@@ -454,7 +578,7 @@ func (s *KubiksMCP) httpGetMetrics(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	metrics, err := s.db.GetMetricsPaginated(limit, offset)
+	metrics, err := s.db.GetMetricsPaginatedByService(serviceName, limit, offset)
 	if err != nil {
 		http.Error(w, fmt.Sprintf(`{"error": "Database error: %v"}`, err), http.StatusInternalServerError)
 		return

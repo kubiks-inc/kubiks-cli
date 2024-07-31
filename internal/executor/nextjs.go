@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -48,8 +49,6 @@ func (e *NextJSExecutor) ensureInstrumentationFile() error {
 	return nil
 }
 
-
-
 // RunDirect runs the Next.js development server directly without TUI wrapper
 func (e *NextJSExecutor) RunDirect() error {
 	// Pre-validate the environment
@@ -57,8 +56,10 @@ func (e *NextJSExecutor) RunDirect() error {
 		return err
 	}
 
+	serviceName := e.getServiceNameFromPackageJSON()
 	fmt.Println("🚀 Starting Next.js development server with OpenTelemetry instrumentation...")
 	fmt.Printf("📊 Instrumentation file: %s\n", e.instrumentationPath)
+	fmt.Printf("🏷️  Service name: %s\n", serviceName)
 	fmt.Println("🔗 OTEL Endpoint: http://localhost:7432")
 	fmt.Println("📡 OTEL Protocol: http/json")
 
@@ -110,6 +111,9 @@ func (e *NextJSExecutor) createCommand() (*exec.Cmd, error) {
 	// Get current environment
 	env := os.Environ()
 
+	// Get service name from package.json
+	serviceName := e.getServiceNameFromPackageJSON()
+
 	// Set NODE_OPTIONS with the instrumentation file
 	nodeOptions := fmt.Sprintf("--require %s", e.instrumentationPath)
 
@@ -131,6 +135,7 @@ func (e *NextJSExecutor) createCommand() (*exec.Cmd, error) {
 	// Set OpenTelemetry environment variables
 	env = append(env, "COLLECTOR_URL=http://localhost:7432")
 	env = append(env, "OTEL_EXPORTER_OTLP_PROTOCOL=http/json")
+	env = append(env, "OTEL_SERVICE_NAME="+serviceName)
 
 	cmd.Env = env
 
@@ -166,6 +171,40 @@ func (e *NextJSExecutor) validateEnvironment() error {
 	}
 
 	return nil
+}
+
+// getServiceNameFromPackageJSON reads the service name from package.json
+func (e *NextJSExecutor) getServiceNameFromPackageJSON() string {
+	type PackageJSON struct {
+		Name string `json:"name"`
+	}
+
+	packageJSONPath := filepath.Join(".", "package.json")
+	data, err := os.ReadFile(packageJSONPath)
+	if err != nil {
+		fmt.Printf("⚠️  Warning: Could not read package.json: %v, using directory name\n", err)
+		// Fallback to directory name
+		currentDir, _ := os.Getwd()
+		return filepath.Base(currentDir)
+	}
+
+	var pkg PackageJSON
+	if err := json.Unmarshal(data, &pkg); err != nil {
+		fmt.Printf("⚠️  Warning: Could not parse package.json: %v, using directory name\n", err)
+		// Fallback to directory name
+		currentDir, _ := os.Getwd()
+		return filepath.Base(currentDir)
+	}
+
+	if pkg.Name == "" {
+		fmt.Printf("⚠️  Warning: package.json has no name field, using directory name\n")
+		// Fallback to directory name
+		currentDir, _ := os.Getwd()
+		return filepath.Base(currentDir)
+	}
+
+	fmt.Printf("📦 Using service name from package.json: %s\n", pkg.Name)
+	return pkg.Name
 }
 
 // GetInstrumentationPath returns the path to the instrumentation file

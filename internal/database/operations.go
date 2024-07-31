@@ -7,9 +7,10 @@ import (
 
 // InsertLog inserts a log record into the database
 func (db *DB) InsertLog(traceID, data string) (int64, error) {
-	query := `INSERT INTO otel_logs (trace_id, data) VALUES (?, ?)`
-	
-	result, err := db.conn.Exec(query, traceID, data)
+	serviceName := ExtractServiceName([]byte(data))
+	query := `INSERT INTO otel_logs (trace_id, servicename, data) VALUES (?, ?, ?)`
+
+	result, err := db.conn.Exec(query, traceID, serviceName, data)
 	if err != nil {
 		return 0, fmt.Errorf("failed to insert log: %w", err)
 	}
@@ -24,9 +25,10 @@ func (db *DB) InsertLog(traceID, data string) (int64, error) {
 
 // InsertMetric inserts a metric record into the database
 func (db *DB) InsertMetric(traceID, data string) (int64, error) {
-	query := `INSERT INTO otel_metrics (trace_id, data) VALUES (?, ?)`
-	
-	result, err := db.conn.Exec(query, traceID, data)
+	serviceName := ExtractServiceName([]byte(data))
+	query := `INSERT INTO otel_metrics (trace_id, servicename, data) VALUES (?, ?, ?)`
+
+	result, err := db.conn.Exec(query, traceID, serviceName, data)
 	if err != nil {
 		return 0, fmt.Errorf("failed to insert metric: %w", err)
 	}
@@ -41,9 +43,10 @@ func (db *DB) InsertMetric(traceID, data string) (int64, error) {
 
 // InsertTrace inserts a trace record into the database
 func (db *DB) InsertTrace(traceID, data string) (int64, error) {
-	query := `INSERT INTO otel_traces (trace_id, data) VALUES (?, ?)`
-	
-	result, err := db.conn.Exec(query, traceID, data)
+	serviceName := ExtractServiceName([]byte(data))
+	query := `INSERT INTO otel_traces (trace_id, servicename, data) VALUES (?, ?, ?)`
+
+	result, err := db.conn.Exec(query, traceID, serviceName, data)
 	if err != nil {
 		return 0, fmt.Errorf("failed to insert trace: %w", err)
 	}
@@ -243,6 +246,50 @@ func (db *DB) GetTracesPaginated(limit, offset int) ([]*OTELRecord, error) {
 	}
 
 	return records, nil
+}
+
+// getPaginatedByService is a generic function to retrieve OTEL records with pagination filtered by service name
+func (db *DB) getPaginatedByService(tableName, serviceName string, limit, offset int) ([]*OTELRecord, error) {
+	query := fmt.Sprintf(`SELECT id, trace_id, timestamp, data FROM %s 
+		WHERE servicename = ? 
+		ORDER BY timestamp DESC LIMIT ? OFFSET ?`, tableName)
+
+	rows, err := db.conn.Query(query, serviceName, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query %s for service %s: %w", tableName, serviceName, err)
+	}
+	defer rows.Close()
+
+	var records []*OTELRecord
+	for rows.Next() {
+		record := &OTELRecord{}
+		err := rows.Scan(&record.ID, &record.TraceID, &record.Timestamp, &record.Data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan %s row: %w", tableName, err)
+		}
+		records = append(records, record)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating %s rows: %w", tableName, err)
+	}
+
+	return records, nil
+}
+
+// GetLogsPaginatedByService retrieves logs with pagination filtered by service name
+func (db *DB) GetLogsPaginatedByService(serviceName string, limit, offset int) ([]*OTELRecord, error) {
+	return db.getPaginatedByService("otel_logs", serviceName, limit, offset)
+}
+
+// GetMetricsPaginatedByService retrieves metrics with pagination filtered by service name
+func (db *DB) GetMetricsPaginatedByService(serviceName string, limit, offset int) ([]*OTELRecord, error) {
+	return db.getPaginatedByService("otel_metrics", serviceName, limit, offset)
+}
+
+// GetTracesPaginatedByService retrieves traces with pagination filtered by service name
+func (db *DB) GetTracesPaginatedByService(serviceName string, limit, offset int) ([]*OTELRecord, error) {
+	return db.getPaginatedByService("otel_traces", serviceName, limit, offset)
 }
 
 // GetDB returns the underlying database connection for advanced operations
