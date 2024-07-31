@@ -6,15 +6,14 @@
   "scripts": {
     "build": "tsc && npm run bundle",
     "bundle": "esbuild dist/instrumentation.js --bundle --platform=node --target=node18 --format=cjs --outfile=dist/instrumentation.bundled.js --external:path",
-    "clean": "rm -rf dist",
-    "prepare": "npm install"
+    "clean": "rm -rf dist"
   },
   "dependencies": {
     "@kubiks/otel-nextjs": "^1.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
     "@types/node": "^20.0.0",
-    "esbuild": "^0.20.0"
+    "esbuild": "^0.20.0",
+    "typescript": "^5.0.0"
   }
 }

@@ -156,7 +156,7 @@ func (e *NextJSExecutor) createCommand() (*exec.Cmd, error) {
 	}
 
 	// Set OpenTelemetry environment variables
-	env = append(env, "OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:7432")
+	env = append(env, "COLLECTOR_URL=http://localhost:7432")
 	env = append(env, "OTEL_EXPORTER_OTLP_PROTOCOL=http/json")
 
 	cmd.Env = env
