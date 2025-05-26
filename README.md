@@ -1,52 +1,99 @@
 # Kubiks CLI
 
-A command line tool for running and managing commands.
+A command line tool for running and monitoring commands with OpenTelemetry integration. Kubiks CLI allows you to execute any command while automatically capturing and streaming its output to Kubiks' observability platform.
+
+## Features
+
+- Run any command with automatic OpenTelemetry instrumentation
+- Real-time log streaming to Kubiks platform
+- Structured logging with command execution events
+- Easy configuration management
 
 ## Installation
+
+### Using Go Install
 
 ```bash
 go install github.com/kubiks-inc/kubiks-cli@latest
 ```
 
+### From Source
+
+```bash
+git clone https://github.com/kubiks-inc/kubiks-cli.git
+cd kubiks-cli
+go build
+```
+
+## Configuration
+
+Before using the CLI, you need to configure your authentication token:
+
+```bash
+kubiks config add-authtoken YOUR_TOKEN
+```
+
+The token will be securely stored in `~/.config/kubiks/config.json`.
+
 ## Usage
 
-### Run a command
+### Running Commands
 
-Run any command and see its output:
-
-```bash
-kubiks run <command>
-```
-
-Example:
+Run any command and monitor its output:
 
 ```bash
-kubiks run ls -la
-kubiks run echo "Hello, World!"
+kubiks run "your-command-here"
 ```
 
-Options:
+Examples:
+
+```bash
+# Run a simple command
+kubiks run "echo hello world"
+
+# Run a long-running process
+kubiks run "npm start"
+
+# Run with multiple arguments
+kubiks run "ls -la /path/to/directory"
+```
+
+### Options
 
 - `-v, --verbose`: Enable verbose output
-- `--config`: Specify a custom config file path (default: ~/.kubiks/config.json)
+- `--service-name`: Set custom service name for telemetry (default: "kubiks-subprocess")
 
-### Configure
+### Viewing Logs
 
-Configure the CLI settings:
+All command output and execution events are automatically streamed to the Kubiks platform. You can view your logs in real-time at:
 
-```bash
-kubiks configure
-```
-
-This will prompt you for:
-
-- Authentication token
-
-The configuration is stored in `~/.kubiks/config.json` by default.
+[https://app.kubiks.ai/logs](https://app.kubiks.ai/logs)
 
 ## Development
 
-1. Clone the repository
-2. Install dependencies: `go mod tidy`
-3. Build: `go build`
-4. Run tests: `go test ./...`
+1. Clone the repository:
+
+   ```bash
+   git clone https://github.com/kubiks-inc/kubiks-cli.git
+   ```
+
+2. Install dependencies:
+
+   ```bash
+   go mod tidy
+   ```
+
+3. Build the project:
+
+   ```bash
+   go build
+   ```
+
+4. Run tests:
+   ```bash
+   go test ./...
+   ```
+
+## License
+
+[Add your license information here]

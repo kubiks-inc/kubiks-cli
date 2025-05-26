@@ -25,11 +25,14 @@ var rootCmd = &cobra.Command{
 ╭──────────────────────────────────────────────────────────-╮
 │  🚀 Kubiks - OpenTelemetry Process Monitor                │
 │                                                           │
-│  Run any command and automatically send stdout/stderr     │
-│  as structured OpenTelemetry logs to your collector.      │
+│  Empower your debugging experience with powerful          │
+│  observability. Kubiks automatically instruments any      │
+│  process, capturing stdout/stderr as structured           │
+│  OpenTelemetry logs, viewable at https://app.kubiks.ai   │
 │                                                           │
-│  Perfect for monitoring CI/CD pipelines, debugging        │
-│  applications, and creating observability for any process.│
+│  Perfect for debugging applications, monitoring CI/CD     │
+│  pipelines, and gaining deep insights into any process    │
+│  with zero configuration.                                 │
 ╰──────────────────────────────────────────────────────────-╯`),
 	Example: color.New(color.FgYellow).Sprint(`  # Run a simple command with default settings
   kubiks run "echo hello world"
@@ -53,10 +56,6 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.config/kubiks/config.json)")
 	rootCmd.PersistentFlags().StringVar(&serviceName, "service-name", "kubiks-subprocess", "Service name for OpenTelemetry traces")
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
-
-	// Bind flags to viper
-	viper.BindPFlag("service-name", rootCmd.PersistentFlags().Lookup("service-name"))
-	viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
 }
 
 // initConfig reads in config file and ENV variables if set.
