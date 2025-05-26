@@ -128,6 +128,9 @@ func runCommand(cmd *cobra.Command, args []string) error {
 	
 	command := exec.CommandContext(cmd.Context(), cmdParts[0], cmdParts[1:]...)
 	
+	// Set working directory to current directory
+	command.Dir = "."
+	
 	// Redirect stdout/stderr to our telemetry system
 	command.Stdout = exporter
 	command.Stderr = exporter
