@@ -164,7 +164,7 @@ jobs:
         echo "Download the appropriate binary for your platform from the assets below." >> CHANGELOG.md
     
     - name: Create Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ steps.version.outputs.version }}
         name: Release ${{ steps.version.outputs.version }}
