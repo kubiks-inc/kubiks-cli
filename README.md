@@ -71,6 +71,8 @@ module.exports = nextConfig
 
 This enables Cursor to see browser logs alongside server logs for complete visibility.
 
+> 💡 This feature is part of Next.js's experimental browser log forwarding designed to support AI-powered debugging workflows. Learn more in the [Next.js 15.4 blog post](https://nextjs.org/blog/next-15-4#preview-upcoming-features).
+
 That's it! Now when your app has issues, ask Cursor questions like:
 - *"Why is my login API returning 500?"*
 - *"What SQL queries are running when users click this button?"*
