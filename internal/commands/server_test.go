@@ -1,7 +1,13 @@
 package commands
 
 import (
+	"os"
+	"strings"
 	"testing"
+
+	"github.com/kubiks-inc/kubiks-cli/internal/handlers"
+	"github.com/kubiks-inc/kubiks-cli/internal/mcp"
+	"github.com/kubiks-inc/kubiks-cli/internal/mcpconfig"
 )
 
 func TestNewServerCommand(t *testing.T) {
@@ -70,10 +76,63 @@ func TestServerCommand_Interface(t *testing.T) {
 	}
 }
 
-// Note: Testing the actual server startup (RunDirect/startServer) is complex
-// as it involves starting real HTTP servers, database connections, and signal handling.
-// These would be better tested in integration tests or with more sophisticated mocking.
-// The tests above focus on the structure and initialization logic.
+func TestServerCommand_RunDirect_DatabaseError(t *testing.T) {
+	// Create a command that will fail when trying to create database in invalid path
+	cmd := &ServerCommand{
+		otelPort:   "7432",
+		mcpPort:    "7433",
+		mcpManager: mcpconfig.NewManager(),
+	}
+
+	// Set invalid HOME to force database creation failure
+	originalHome := os.Getenv("HOME")
+	defer os.Setenv("HOME", originalHome)
+	os.Setenv("HOME", "/invalid/path/that/does/not/exist")
+
+	err := cmd.RunDirect()
+	if err == nil {
+		t.Error("Expected error when database creation fails")
+	}
+
+	if !strings.Contains(err.Error(), "failed to create OTEL server") {
+		t.Errorf("Expected OTEL server creation error, got: %v", err)
+	}
+}
+
+func TestServerCommand_StartServer_Components(t *testing.T) {
+	// Test individual components without starting full server
+	tempDir := t.TempDir()
+	originalHome := os.Getenv("HOME")
+	defer os.Setenv("HOME", originalHome)
+	os.Setenv("HOME", tempDir)
+
+	cmd := NewServerCommand()
+
+	// Test that we can create the required components
+	otelServer, err := handlers.NewServer(cmd.otelPort)
+	if err != nil {
+		t.Fatalf("Failed to create OTEL server: %v", err)
+	}
+	defer otelServer.Close()
+
+	mcpServer, err := mcp.NewMCPServer(otelServer.GetDB(), cmd.mcpPort)
+	if err != nil {
+		t.Fatalf("Failed to create MCP server: %v", err)
+	}
+	defer mcpServer.Close()
+
+	// Test MCP configuration
+	err = cmd.mcpManager.AddKubiksServer()
+	if err != nil {
+		t.Errorf("Failed to add MCP server config: %v", err)
+	}
+
+	// Cleanup
+	err = cmd.mcpManager.RemoveKubiksServer()
+	if err != nil {
+		t.Errorf("Failed to remove MCP server config: %v", err)
+	}
+}
 
 func TestServerCommand_PortConfiguration(t *testing.T) {
 	tests := []struct {

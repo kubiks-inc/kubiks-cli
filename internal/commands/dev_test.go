@@ -2,6 +2,7 @@ package commands
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -310,4 +311,71 @@ func TestDevCommand_Constants(t *testing.T) {
 		// Verify method signature
 		_ = runDirecter.RunDirect
 	}
+}
+
+func TestDevCommand_RunDirect_ExecutorFailure(t *testing.T) {
+	// Create a temporary directory with a package.json that contains Next.js
+	tempDir := t.TempDir()
+	packageJSON := `{
+		"name": "test-nextjs-app",
+		"dependencies": {
+			"next": "13.0.0"
+		}
+	}`
+	packageJSONPath := filepath.Join(tempDir, "package.json")
+	err := os.WriteFile(packageJSONPath, []byte(packageJSON), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create package.json: %v", err)
+	}
+
+	// Change to the temp directory
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer os.Chdir(originalDir)
+
+	err = os.Chdir(tempDir)
+	if err != nil {
+		t.Fatalf("Failed to change to temp directory: %v", err)
+	}
+
+	cmd := &DevCommand{
+		detector: detector.NewNextJSDetector(),
+		executor: nil, // Will cause the expected error
+	}
+
+	// Test execution
+	err = cmd.RunDirect()
+	if err == nil {
+		t.Error("Expected error when executor fails")
+	}
+
+	expectedError := "NextJS executor not initialized"
+	if !strings.Contains(err.Error(), expectedError) {
+		t.Errorf("Expected error to contain '%s', got: %v", expectedError, err)
+	}
+}
+
+func TestDevCommand_GetComponents(t *testing.T) {
+	cmd := NewDevCommand()
+
+	if cmd.detector == nil {
+		t.Error("Expected detector to be initialized")
+	}
+
+	// executor might be nil if instrumentation file is missing, that's ok
+
+	// Test detector interface
+	projectType := cmd.detector.GetProjectType()
+	if projectType == "" {
+		t.Error("Expected non-empty project type from detector")
+	}
+}
+
+// MockExecutorFail is a mock executor that always fails
+type MockExecutorFail struct{}
+
+func (m *MockExecutorFail) RunDirect() error {
+	return fmt.Errorf("mock executor failure")
 }

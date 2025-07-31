@@ -448,3 +448,34 @@ func TestNextJSExecutor_CreateCommand_ExistingNodeOptions(t *testing.T) {
 		t.Errorf("NODE_OPTIONS should contain require flag for instrumentation, got '%s'", nodeOptionsValue)
 	}
 }
+
+func TestNextJSExecutor_RunDirect_ValidationFailure(t *testing.T) {
+	tempDir := t.TempDir()
+
+	// Create minimal directory without proper Next.js structure
+	executor := &NextJSExecutor{
+		instrumentationPath: "/fake/path/instrumentation.js",
+	}
+
+	// Change to temp directory
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get current directory: %v", err)
+	}
+	defer os.Chdir(originalDir)
+	err = os.Chdir(tempDir)
+	if err != nil {
+		t.Fatalf("Failed to change directory: %v", err)
+	}
+
+	// Test RunDirect fails validation
+	err = executor.RunDirect()
+	if err == nil {
+		t.Error("Expected validation error")
+	}
+
+	// Should fail because package.json doesn't exist
+	if !strings.Contains(err.Error(), "package.json") {
+		t.Errorf("Expected package.json error, got: %v", err)
+	}
+}
