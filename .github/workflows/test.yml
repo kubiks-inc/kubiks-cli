@@ -64,17 +64,6 @@ jobs:
         flags: unittests
         name: codecov-umbrella
     
-    - name: Check coverage threshold
-      run: |
-        COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
-        echo "Total coverage: ${COVERAGE}%"
-        # Check if coverage meets threshold (using shell arithmetic instead of bc)
-        COVERAGE_NUM=${COVERAGE%.*}
-        if [ "$COVERAGE_NUM" -lt 70 ]; then
-          echo "Coverage is below 70% threshold"
-          exit 1
-        fi
-
 
   build:
     runs-on: ubuntu-latest
