@@ -191,7 +191,8 @@ jobs:
       uses: dawidd6/action-homebrew-bump-formula@v3
       with:
         token: ${{ secrets.HOMEBREW_TOKEN }}
-        tap: kubiks-inc/tap
+        org: kubiks-inc
+        tap: tap
         formula: kubiks
         tag: ${{ steps.version.outputs.version }}
         revision: ${{ github.sha }}
