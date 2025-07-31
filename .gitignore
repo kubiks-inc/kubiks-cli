@@ -59,4 +59,3 @@ kubiks-data/
 # Instrumentation build artifacts
 node_modules/
 dist/
-package-lock.json
