@@ -53,6 +53,24 @@ brew install kubiks-inc/tap/kubiks
 kubiks 
 ```
 
+### 💡 Pro Tip: Enable Browser Logs
+
+For the best debugging experience, we highly recommend adding this to your `next.config.js`:
+
+```javascript
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    // Forward browser logs to the terminal for easier debugging
+    browserDebugInfoInTerminal: true,
+  },
+}
+
+module.exports = nextConfig
+```
+
+This enables Cursor to see browser logs alongside server logs for complete visibility.
+
 That's it! Now when your app has issues, ask Cursor questions like:
 - *"Why is my login API returning 500?"*
 - *"What SQL queries are running when users click this button?"*
