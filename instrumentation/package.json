@@ -12,7 +12,7 @@
     "@kubiks/otel-nextjs": "^1.0.25"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@types/node": "^24.1.0",
     "esbuild": "^0.20.0",
     "typescript": "^5.0.0"
   }
