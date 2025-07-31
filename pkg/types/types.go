@@ -19,7 +19,7 @@ func GetAppDataDir() string {
 		// Fallback to current directory if home directory can't be determined
 		return "./kubiks-data"
 	}
-	
+
 	// Use macOS Application Support directory
 	return filepath.Join(homeDir, "Library", "Application Support", "kubiks")
 }

@@ -14,10 +14,10 @@ import (
 
 // MockProjectDetector implements the ProjectDetector interface for testing
 type MockProjectDetector struct {
-	isSupported   bool
-	projectType   string
-	shouldError   bool
-	errorMessage  string
+	isSupported  bool
+	projectType  string
+	shouldError  bool
+	errorMessage string
 }
 
 func (m *MockProjectDetector) IsSupported() (bool, error) {
@@ -65,9 +65,9 @@ func TestNewDevCommand(t *testing.T) {
 func TestDevCommand_RunDirect_UnsupportedProject(t *testing.T) {
 	cmd := &DevCommand{
 		detector: &MockProjectDetector{
-			isSupported:  false,
-			projectType:  "Test",
-			shouldError:  false,
+			isSupported: false,
+			projectType: "Test",
+			shouldError: false,
 		},
 		executor: nil, // Not needed for this test
 	}

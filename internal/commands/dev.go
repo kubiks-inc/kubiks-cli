@@ -29,8 +29,6 @@ func NewDevCommand() *DevCommand {
 	}
 }
 
-
-
 // RunDirect runs the development server directly without TUI wrapper
 func (c *DevCommand) RunDirect() error {
 	// Check if this is a supported project
@@ -47,5 +45,3 @@ func (c *DevCommand) RunDirect() error {
 	// Use the executor to run the command
 	return c.executor.RunDirect()
 }
-
-

@@ -33,9 +33,9 @@ type MCPTool struct {
 
 // MCPToolSchema represents the input schema for a tool
 type MCPToolSchema struct {
-	Type       string                  `json:"type"`
-	Properties map[string]MCPProperty  `json:"properties,omitempty"`
-	Required   []string                `json:"required,omitempty"`
+	Type       string                 `json:"type"`
+	Properties map[string]MCPProperty `json:"properties,omitempty"`
+	Required   []string               `json:"required,omitempty"`
 }
 
 // MCPProperty represents a property in a tool schema

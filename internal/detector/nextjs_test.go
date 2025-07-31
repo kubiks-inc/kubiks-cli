@@ -79,7 +79,7 @@ func TestNextJSDetector_IsSupported(t *testing.T) {
 			packageJSON: map[string]interface{}{
 				"name": "test-app",
 				"dependencies": map[string]interface{}{
-					"react": "18.0.0",
+					"react":   "18.0.0",
 					"express": "4.18.0",
 				},
 			},

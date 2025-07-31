@@ -408,8 +408,8 @@ func TestFindTraceID(t *testing.T) {
 			expected: "array-trace-012",
 		},
 		{
-			name: "string value",
-			data: "just-a-string",
+			name:     "string value",
+			data:     "just-a-string",
 			expected: "",
 		},
 		{
@@ -418,8 +418,8 @@ func TestFindTraceID(t *testing.T) {
 			expected: "",
 		},
 		{
-			name: "empty map",
-			data: map[string]interface{}{},
+			name:     "empty map",
+			data:     map[string]interface{}{},
 			expected: "",
 		},
 		{
@@ -605,8 +605,8 @@ func TestExtractServiceNameFromAttributes(t *testing.T) {
 			expected: "",
 		},
 		{
-			name: "empty map",
-			attrs: map[string]interface{}{},
+			name:     "empty map",
+			attrs:    map[string]interface{}{},
 			expected: "",
 		},
 		{

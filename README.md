@@ -151,7 +151,7 @@ Apache 2.0 License - see [LICENSE](LICENSE) file for details.
 - 🐛 [Report issues](https://github.com/kubiks-inc/kubiks-cli/issues/new/choose)
 - 💡 [Request features](https://github.com/kubiks-inc/kubiks-cli/issues/new/choose)
 - 💬 [Join discussions](https://github.com/kubiks-inc/kubiks-cli/discussions)
-- 📧 Email: [support@kubiks.inc](mailto:support@kubiks.inc)
+- 📧 Email: [support@kubiks.ai](mailto:support@kubiks.ai)
 
 ---
 

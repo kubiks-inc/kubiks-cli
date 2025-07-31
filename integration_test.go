@@ -206,7 +206,7 @@ func TestNextJSDetectionIntegration(t *testing.T) {
 	packageJSON := map[string]interface{}{
 		"name": "regular-react-app",
 		"dependencies": map[string]interface{}{
-			"react": "18.0.0",
+			"react":   "18.0.0",
 			"express": "4.18.0",
 		},
 	}
@@ -238,7 +238,7 @@ func TestNextJSDetectionIntegration(t *testing.T) {
 	nextjsPackageJSON := map[string]interface{}{
 		"name": "nextjs-app",
 		"dependencies": map[string]interface{}{
-			"next": "13.0.0",
+			"next":  "13.0.0",
 			"react": "18.0.0",
 		},
 		"scripts": map[string]interface{}{

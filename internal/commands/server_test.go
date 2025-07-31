@@ -77,9 +77,9 @@ func TestServerCommand_Interface(t *testing.T) {
 
 func TestServerCommand_PortConfiguration(t *testing.T) {
 	tests := []struct {
-		name         string
-		otelPort     string
-		mcpPort      string
+		name     string
+		otelPort string
+		mcpPort  string
 	}{
 		{
 			name:     "default ports",

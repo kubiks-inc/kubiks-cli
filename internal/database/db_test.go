@@ -287,7 +287,7 @@ func TestDB_ConnectionPoolSettings(t *testing.T) {
 
 	// Verify connection pool settings (these are internal but we can test they don't cause issues)
 	stats := db.conn.Stats()
-	
+
 	// Just verify the connection is working with multiple concurrent operations
 	for i := 0; i < 5; i++ {
 		go func() {
