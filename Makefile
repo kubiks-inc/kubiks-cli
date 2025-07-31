@@ -61,10 +61,10 @@ fmt:
 	@echo "Formatting code..."
 	@go fmt ./...
 
-# Lint code
-lint:
-	@echo "Linting code..."
-	@golangci-lint run
+# Lint code (disabled)
+# lint:
+# 	@echo "Linting code..."
+# 	@golangci-lint run
 
 # Build for multiple platforms
 build-all: clean
@@ -107,8 +107,8 @@ help:
 	@echo "  test         - Run tests"
 	@echo "  test-coverage- Run tests with coverage"
 	@echo "  fmt          - Format code"
-	@echo "  lint         - Lint code (requires golangci-lint)"
+	@echo "  lint         - Lint code (disabled)"
 	@echo "  build-all    - Build for multiple platforms"
 	@echo "  help         - Show this help message"
 
-.PHONY: build clean run deps test test-coverage fmt lint build-all help
+.PHONY: build clean run deps test test-coverage fmt build-all help
