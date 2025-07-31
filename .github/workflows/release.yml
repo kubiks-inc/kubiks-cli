@@ -192,7 +192,7 @@ jobs:
       with:
         token: ${{ secrets.HOMEBREW_TOKEN }}
         org: kubiks-inc
-        tap: homebrew-tap
+        tap: tap
         formula: kubiks
         tag: ${{ steps.version.outputs.version }}
         revision: ${{ github.sha }}
