@@ -2,8 +2,6 @@
 
 [![Tests](https://github.com/kubiks-inc/kubiks-cli/actions/workflows/test.yml/badge.svg)](https://github.com/kubiks-inc/kubiks-cli/actions/workflows/test.yml)
 [![Release](https://github.com/kubiks-inc/kubiks-cli/actions/workflows/release.yml/badge.svg)](https://github.com/kubiks-inc/kubiks-cli/actions/workflows/release.yml)
-[![Go Report Card](https://goreportcard.com/badge/github.com/kubiks-inc/kubiks-cli)](https://goreportcard.com/report/github.com/kubiks-inc/kubiks-cli)
-[![Coverage](https://codecov.io/gh/kubiks-inc/kubiks-cli/branch/main/graph/badge.svg)](https://codecov.io/gh/kubiks-inc/kubiks-cli)
 
 **AI-powered debugging for Next.js applications.** Automatically instrument your app, capture all logs, traces, and requests, then let Cursor fix bugs with full context.
 
