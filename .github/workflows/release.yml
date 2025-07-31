@@ -188,11 +188,10 @@ jobs:
       run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
     
     - name: Update Homebrew formula
-      uses: dawidd6/action-homebrew-bump-formula@v3
+      uses: dawidd6/action-homebrew-bump-formula@v5
       with:
         token: ${{ secrets.HOMEBREW_TOKEN }}
-        org: kubiks-inc
-        tap: tap
+        tap: kubiks-inc/tap
         formula: kubiks
         tag: ${{ steps.version.outputs.version }}
         revision: ${{ github.sha }}
