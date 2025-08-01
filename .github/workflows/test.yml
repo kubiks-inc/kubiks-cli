@@ -94,7 +94,15 @@ jobs:
           ${{ runner.os }}-go-build-
     
     - name: Install dependencies
-      run: go mod download
+      run: |
+        go mod download
+        cd instrumentation && npm install
+    
+    - name: Build instrumentation
+      run: |
+        cd instrumentation && npm run build
+        # Copy instrumentation file for embedding
+        cp dist/instrumentation.bundled.js ../internal/instrumentation/instrumentation.bundled.js
     
     - name: Build application
       run: make build
@@ -107,15 +115,10 @@ jobs:
           echo "Binary not found"
           exit 1
         fi
-        if [ ! -f ./bin/instrumentation.js ]; then
-          echo "Instrumentation file not found"
-          exit 1
-        fi
+        echo "Binary built successfully with embedded instrumentation"
     
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
         name: kubiks-linux-amd64
-        path: |
-          bin/kubiks
-          bin/instrumentation.js
+        path: bin/kubiks
