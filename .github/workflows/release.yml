@@ -17,24 +17,27 @@ env:
 
 jobs:
   build-and-release:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      packages: write
-    
     strategy:
       matrix:
         include:
-          - goos: linux
+          - runner: ubuntu-latest
+            goos: linux
             goarch: amd64
             os: linux
-          - goos: darwin
+          - runner: macos-latest
+            goos: darwin
             goarch: amd64
             os: darwin
-          - goos: windows
+          - runner: windows-latest
+            goos: windows
             goarch: amd64
             os: windows
             ext: .exe
+    
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: write
+      packages: write
     
     steps:
     - name: Checkout code
@@ -80,8 +83,6 @@ jobs:
     
     - name: Build binary
       env:
-        GOOS: ${{ matrix.goos }}
-        GOARCH: ${{ matrix.goarch }}
         CGO_ENABLED: 1
       run: |
         mkdir -p dist
