@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	_ "modernc.org/sqlite"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // DB wraps the database connection and provides OTEL-specific methods
@@ -22,7 +22,7 @@ func NewDB(dbPath string) (*DB, error) {
 	}
 
 	// Open database connection
-	conn, err := sql.Open("sqlite", dbPath+"?_journal_mode=WAL&_timeout=5000&_synchronous=NORMAL")
+	conn, err := sql.Open("sqlite3", dbPath+"?_journal_mode=WAL&_timeout=5000&_synchronous=NORMAL")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}

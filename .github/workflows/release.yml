@@ -75,14 +75,7 @@ jobs:
         cd instrumentation && npm install
     
     - name: Build instrumentation
-      run: |
-        cd instrumentation && npm run build
-        echo "Instrumentation build completed. Contents of dist:"
-        ls -la dist/
-        if [ ! -f "dist/instrumentation.bundled.js" ]; then
-          echo "ERROR: instrumentation.bundled.js not found!"
-          exit 1
-        fi
+      run: cd instrumentation && npm run build
     
     - name: Build binary
       env:
@@ -95,28 +88,12 @@ jobs:
         go build -ldflags="-s -w -X main.version=${{ steps.version.outputs.version }}" -o dist/$binary_name .
         cp instrumentation/dist/instrumentation.bundled.js dist/instrumentation.js
         
-        # Verify instrumentation.js exists before archiving
-        ls -la dist/
-        if [ ! -f "dist/instrumentation.js" ]; then
-          echo "ERROR: instrumentation.js not found in dist/"
-          exit 1
-        fi
-        
         # Create archive
         cd dist
         if [ "${{ matrix.goos }}" = "windows" ]; then
           zip -r kubiks-${{ steps.version.outputs.version }}-${{ matrix.os }}-${{ matrix.goarch }}.zip $binary_name instrumentation.js
         else
           tar -czf kubiks-${{ steps.version.outputs.version }}-${{ matrix.os }}-${{ matrix.goarch }}.tar.gz $binary_name instrumentation.js
-        fi
-        
-        # Verify archive contents
-        if [ "${{ matrix.goos }}" = "windows" ]; then
-          echo "Archive contents:"
-          unzip -l kubiks-${{ steps.version.outputs.version }}-${{ matrix.os }}-${{ matrix.goarch }}.zip
-        else
-          echo "Archive contents:"
-          tar -tzf kubiks-${{ steps.version.outputs.version }}-${{ matrix.os }}-${{ matrix.goarch }}.tar.gz
         fi
     
     - name: Upload artifacts
