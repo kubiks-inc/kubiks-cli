@@ -94,7 +94,7 @@ Cursor will have complete visibility into your application's behavior.
 
 ## 🎬 Demo
 
-![Demo Video](images/kubiks-cli-demo.mov)
+![Kubiks CLI Demo](images/kubiks-cli-demo.gif)
 
 *Watch Kubiks CLI in action: automatic instrumentation, real-time telemetry capture, and AI-powered debugging with Cursor.*
 
