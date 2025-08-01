@@ -167,7 +167,7 @@ make build
 
 ## 🌟 Star us!
 
-If Kubiks helps you debug faster, please star the repo! It helps other developers discover this tool.
+If Kubiks helps you debug faster, please star the repo! It helps other engineers discover this tool.
 
 [⭐ Star on GitHub](https://github.com/kubiks-inc/kubiks-cli)
 
@@ -184,4 +184,4 @@ Apache 2.0 License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-**Made with ❤️ by developers, for developers.** Happy debugging! 🐛✨
+**Made with ❤️ by engineers, for engineers.** Happy debugging! 🐛✨
