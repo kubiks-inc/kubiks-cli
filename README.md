@@ -94,6 +94,12 @@ Cursor will have complete visibility into your application's behavior.
 
 ## 🎬 Demo
 
+![Demo Video](images/kubiks-cli-demo.mov)
+
+*Watch Kubiks CLI in action: automatic instrumentation, real-time telemetry capture, and AI-powered debugging with Cursor.*
+
+### Try it yourself:
+
 ```bash
 # Terminal 1: Start your instrumented Next.js app
 cd my-nextjs-app
