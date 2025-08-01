@@ -82,22 +82,16 @@ jobs:
       run: |
         mkdir -p dist
         binary_name="kubiks${{ matrix.ext }}"
+        
+        # Build binary with embedded instrumentation
         go build -ldflags="-s -w -X main.version=${{ steps.version.outputs.version }}" -o dist/$binary_name .
-        cp instrumentation/dist/instrumentation.bundled.js dist/instrumentation.js
         
-        # Verify instrumentation.js exists before archiving
-        ls -la dist/
-        if [ ! -f "dist/instrumentation.js" ]; then
-          echo "ERROR: instrumentation.js not found in dist/"
-          exit 1
-        fi
-        
-        # Create archive
+        # Create archive with just the binary (instrumentation is now embedded)
         cd dist
         if [ "${{ matrix.goos }}" = "windows" ]; then
-          zip -r kubiks-${{ steps.version.outputs.version }}-${{ matrix.os }}-${{ matrix.goarch }}.zip $binary_name instrumentation.js
+          zip kubiks-${{ steps.version.outputs.version }}-${{ matrix.os }}-${{ matrix.goarch }}.zip $binary_name
         else
-          tar -czf kubiks-${{ steps.version.outputs.version }}-${{ matrix.os }}-${{ matrix.goarch }}.tar.gz $binary_name instrumentation.js
+          tar -czf kubiks-${{ steps.version.outputs.version }}-${{ matrix.os }}-${{ matrix.goarch }}.tar.gz $binary_name
         fi
         
         # Verify archive contents

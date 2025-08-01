@@ -8,6 +8,8 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+
+	"github.com/kubiks-inc/kubiks-cli/internal/instrumentation"
 )
 
 // NextJSExecutor handles execution of Next.js applications with OpenTelemetry instrumentation
@@ -17,6 +19,19 @@ type NextJSExecutor struct {
 
 // NewNextJSExecutor creates a new Next.js executor
 func NewNextJSExecutor() (*NextJSExecutor, error) {
+	// Try to use embedded instrumentation first
+	if instrumentation.IsEmbedded() {
+		instrumentationPath, err := instrumentation.GetInstrumentationPath()
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract embedded instrumentation: %w", err)
+		}
+		
+		return &NextJSExecutor{
+			instrumentationPath: instrumentationPath,
+		}, nil
+	}
+
+	// Fallback to local file (for development)
 	// Get the path to the current executable
 	execPath, err := os.Executable()
 	if err != nil {
