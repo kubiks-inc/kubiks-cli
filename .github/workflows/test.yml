@@ -22,6 +22,13 @@ jobs:
       with:
         go-version: ${{ matrix.go-version }}
     
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: instrumentation/package-lock.json
+    
     - name: Cache Go modules
       uses: actions/cache@v3
       with:
@@ -33,7 +40,15 @@ jobs:
           ${{ runner.os }}-go-${{ matrix.go-version }}-
     
     - name: Install dependencies
-      run: go mod download
+      run: |
+        go mod download
+        cd instrumentation && npm install
+    
+    - name: Build instrumentation
+      run: |
+        cd instrumentation && npm run build
+        # Copy instrumentation file for embedding
+        cp dist/instrumentation.bundled.js ../internal/instrumentation/instrumentation.bundled.js
     
     - name: Verify go mod tidy
       run: |

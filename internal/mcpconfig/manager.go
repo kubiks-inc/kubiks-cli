@@ -6,8 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/kubiks-inc/kubiks-cli/pkg/types"
 )
 
 const (
@@ -40,14 +38,23 @@ func (m *Manager) AddKubiksServer() error {
 		return fmt.Errorf("failed to load MCP config: %w", err)
 	}
 
-	// Initialize mcpServers map if it doesn't exist
-	if config.MCPServers == nil {
-		config.MCPServers = make(map[string]types.MCPServerConfig)
+	// Get or create mcpServers
+	mcpServers, exists := config["mcpServers"]
+	if !exists {
+		mcpServers = make(map[string]interface{})
+		config["mcpServers"] = mcpServers
+	}
+
+	// Ensure it's a map
+	serversMap, ok := mcpServers.(map[string]interface{})
+	if !ok {
+		serversMap = make(map[string]interface{})
+		config["mcpServers"] = serversMap
 	}
 
 	// Add or update the kubiks server
-	config.MCPServers[KubiksServerName] = types.MCPServerConfig{
-		URL: KubiksServerURL,
+	serversMap[KubiksServerName] = map[string]interface{}{
+		"url": KubiksServerURL,
 	}
 
 	return m.saveConfig(config)
@@ -62,15 +69,17 @@ func (m *Manager) RemoveKubiksServer() error {
 	}
 
 	// Remove the kubiks server if it exists
-	if config.MCPServers != nil {
-		delete(config.MCPServers, KubiksServerName)
+	if mcpServers, exists := config["mcpServers"]; exists {
+		if serversMap, ok := mcpServers.(map[string]interface{}); ok {
+			delete(serversMap, KubiksServerName)
+		}
 	}
 
 	return m.saveConfig(config)
 }
 
 // loadConfig loads the MCP configuration from file
-func (m *Manager) loadConfig() (*types.MCPConfig, error) {
+func (m *Manager) loadConfig() (map[string]interface{}, error) {
 	// Create directory if it doesn't exist
 	dir := filepath.Dir(m.configPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
@@ -79,9 +88,7 @@ func (m *Manager) loadConfig() (*types.MCPConfig, error) {
 
 	// If file doesn't exist, return empty config
 	if _, err := os.Stat(m.configPath); os.IsNotExist(err) {
-		return &types.MCPConfig{
-			MCPServers: make(map[string]types.MCPServerConfig),
-		}, nil
+		return make(map[string]interface{}), nil
 	}
 
 	// Read and parse the file
@@ -92,28 +99,26 @@ func (m *Manager) loadConfig() (*types.MCPConfig, error) {
 
 	// If the file is empty, return empty config
 	if len(data) == 0 || len(strings.TrimSpace(string(data))) == 0 {
-		return &types.MCPConfig{
-			MCPServers: make(map[string]types.MCPServerConfig),
-		}, nil
+		return make(map[string]interface{}), nil
 	}
 
-	var config types.MCPConfig
+	var config map[string]interface{}
 	if err := json.Unmarshal(data, &config); err != nil {
 		// If unmarshal fails, exit the whole app
 		fmt.Fprintf(os.Stderr, "Fatal error: failed to parse MCP config file: %v\n", err)
 		os.Exit(1)
 	}
 
-	// Initialize map if it's nil
-	if config.MCPServers == nil {
-		config.MCPServers = make(map[string]types.MCPServerConfig)
+	// Initialize config if it's nil
+	if config == nil {
+		config = make(map[string]interface{})
 	}
 
-	return &config, nil
+	return config, nil
 }
 
 // saveConfig saves the MCP configuration to file
-func (m *Manager) saveConfig(config *types.MCPConfig) error {
+func (m *Manager) saveConfig(config map[string]interface{}) error {
 	// Create directory if it doesn't exist
 	dir := filepath.Dir(m.configPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
