@@ -28,4 +28,3 @@ func GetAppDataDir() string {
 func GetDatabasePath() string {
 	return filepath.Join(GetAppDataDir(), "kubiks_data.db")
 }
-

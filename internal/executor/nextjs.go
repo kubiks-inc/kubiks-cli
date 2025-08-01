@@ -25,7 +25,7 @@ func NewNextJSExecutor() (*NextJSExecutor, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to extract embedded instrumentation: %w", err)
 		}
-		
+
 		return &NextJSExecutor{
 			instrumentationPath: instrumentationPath,
 		}, nil
