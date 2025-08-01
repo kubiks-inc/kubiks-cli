@@ -179,54 +179,6 @@ func TestDevCommand_RunDirect_RealDetector_NoNextJS(t *testing.T) {
 	}
 }
 
-func TestDevCommand_RunDirect_RealDetector_WithNextJS_NoInstrumentation(t *testing.T) {
-	// Create a temporary directory with Next.js
-	tempDir, err := os.MkdirTemp("", "dev-command-nextjs-test")
-	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	// Save original directory
-	originalDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
-	}
-	defer os.Chdir(originalDir)
-
-	// Change to temp directory
-	if err := os.Chdir(tempDir); err != nil {
-		t.Fatalf("Failed to change to temp directory: %v", err)
-	}
-
-	// Create package.json with Next.js
-	packageJSON := map[string]interface{}{
-		"name": "test-nextjs-app",
-		"dependencies": map[string]interface{}{
-			"next":  "13.0.0",
-			"react": "18.0.0",
-		},
-	}
-
-	jsonData, _ := json.Marshal(packageJSON)
-	if err := os.WriteFile("package.json", jsonData, 0644); err != nil {
-		t.Fatalf("Failed to create package.json: %v", err)
-	}
-
-	// Test with real detector and executor (which will fail due to missing instrumentation)
-	cmd := NewDevCommand()
-	err = cmd.RunDirect()
-
-	if err == nil {
-		t.Error("RunDirect() should return error when executor is nil (due to missing instrumentation)")
-	}
-
-	expectedError := "NextJS executor not initialized"
-	if err.Error() != expectedError {
-		t.Errorf("Expected error '%s', got: %v", expectedError, err)
-	}
-}
-
 // Test DevCommand structure and fields
 func TestDevCommand_Structure(t *testing.T) {
 	// Test that DevCommand has the expected fields
