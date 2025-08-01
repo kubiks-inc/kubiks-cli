@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 )
 
-//go:embed ../../instrumentation/dist/instrumentation.bundled.js
+//go:embed instrumentation.bundled.js
 var instrumentationJS []byte
 
 // GetInstrumentationPath writes the embedded instrumentation.js to a temporary file
@@ -16,12 +16,12 @@ func GetInstrumentationPath() (string, error) {
 	// Create a temporary file for the instrumentation
 	tmpDir := os.TempDir()
 	tmpFile := filepath.Join(tmpDir, "kubiks-instrumentation.js")
-	
+
 	// Write the embedded content to the temporary file
 	if err := os.WriteFile(tmpFile, instrumentationJS, 0644); err != nil {
 		return "", fmt.Errorf("failed to write instrumentation file: %w", err)
 	}
-	
+
 	return tmpFile, nil
 }
 

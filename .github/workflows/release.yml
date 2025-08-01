@@ -75,6 +75,10 @@ jobs:
           echo "ERROR: instrumentation.bundled.js not found!"
           exit 1
         fi
+        
+        # Copy instrumentation file to embed location
+        cp dist/instrumentation.bundled.js ../internal/instrumentation/instrumentation.bundled.js
+        echo "Copied instrumentation file for embedding"
     
     - name: Build binary
       env:
