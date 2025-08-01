@@ -4,6 +4,12 @@
 
 **AI-powered debugging for Next.js applications.** Automatically instrument your app, capture all logs, traces, and requests, then let Cursor fix bugs with full context.
 
+## 🎬 Demo
+
+![Kubiks CLI Demo](images/kubiks-cli-demo.gif)
+
+*Watch Kubiks CLI in action: automatic instrumentation, real-time telemetry capture, and AI-powered debugging with Cursor.*
+
 ## 🎯 What is Kubiks CLI?
 
 When something breaks in your Next.js app, wouldn't it be amazing if your AI code editor could see exactly what happened? **Kubiks CLI makes this possible.**
@@ -91,12 +97,6 @@ Cursor will have complete visibility into your application's behavior.
 4. **Expose**: MCP server provides structured access to all telemetry data
 5. **Debug**: Cursor queries this data to understand and fix issues
 
-
-## 🎬 Demo
-
-![Kubiks CLI Demo](images/kubiks-cli-demo.gif)
-
-*Watch Kubiks CLI in action: automatic instrumentation, real-time telemetry capture, and AI-powered debugging with Cursor.*
 
 ### Try it yourself:
 
