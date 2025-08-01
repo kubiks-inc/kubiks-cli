@@ -28,11 +28,6 @@ jobs:
             goos: darwin
             goarch: amd64
             os: darwin
-          - runner: windows-latest
-            goos: windows
-            goarch: amd64
-            os: windows
-            ext: .exe
     
     runs-on: ${{ matrix.runner }}
     permissions:
