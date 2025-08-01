@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 func TestNewDB(t *testing.T) {
@@ -188,7 +188,7 @@ func TestDB_Migration(t *testing.T) {
 	dbPath := filepath.Join(tempDir, "test.db")
 
 	// Create a database without the servicename column (simulate old version)
-	conn, err := sql.Open("sqlite3", dbPath)
+	conn, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		t.Fatalf("Failed to open database: %v", err)
 	}
