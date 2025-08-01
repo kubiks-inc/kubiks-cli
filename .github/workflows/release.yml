@@ -28,14 +28,8 @@ jobs:
           - goos: linux
             goarch: amd64
             os: linux
-          - goos: linux
-            goarch: arm64
-            os: linux
           - goos: darwin
             goarch: amd64
-            os: darwin
-          - goos: darwin
-            goarch: arm64
             os: darwin
           - goos: windows
             goarch: amd64
