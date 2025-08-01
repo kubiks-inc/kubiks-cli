@@ -24,6 +24,12 @@ kubiks
 # Cursor sees the exact HTTP request, response, database queries, and stack traces
 ```
 
+## 📊 How It Works
+
+![Kubiks CLI Architecture](images/diagram.png)
+
+*Kubiks CLI automatically instruments your Next.js app, captures telemetry data, and makes it available to Cursor through MCP for AI-powered debugging.*
+
 ## 🚀 Core Features
 
 - **🔧 Zero-configuration instrumentation** for Next.js applications
