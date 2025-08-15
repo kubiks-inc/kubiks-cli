@@ -1,3 +1,5 @@
+import { Span } from "@/types/span";
+
 const API_BASE = ''
 
 export async function fetchSpans(params?: { limit?: number; offset?: number }): Promise<Span[]> {

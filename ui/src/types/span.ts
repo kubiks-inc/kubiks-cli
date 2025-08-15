@@ -1,6 +1,7 @@
 export type Span = {
   traceId: string
   spanId: string
+  parentSpanId: string
   kind: number
   name: string
   endTimeUnixNano: number

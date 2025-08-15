@@ -8,12 +8,9 @@ export interface Trace {
   traceId: string;
   timestamp: string;
   durationMs: number;
-  traceStatus: string;
   statusCode: string;
   name: string;
-  statusText: string;
   service: string;
-  status: TraceStatus;
 }
 
 export interface TimeRange {

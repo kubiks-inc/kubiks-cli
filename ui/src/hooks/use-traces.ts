@@ -4,6 +4,7 @@ import useSWRInfinite from 'swr/infinite';
 import { useMemo } from 'react';
 import { fetchSpans } from '@/api/traces';
 import { Span } from '@/types/span';
+import { Trace } from '@/types/trace';
 
 
 const PAGE_LIMIT = 50;
@@ -33,15 +34,64 @@ export function useSpans(searchQuery: string) {
     revalidateFirstPage: false,
   });
 
-  console.log(data);
+  console.log('data', data);
+
+  // Transform the data structure to a single accumulated array
+  const allSpans = useMemo(() => {
+    if (!data) return [];
+    const spans: Span[] = [];
+    for (const page of data) {
+      spans.push(...page);
+    }
+    return spans;
+  }, [data]);
 
   const filteredRecords = useMemo(() => {
-    if (!data) return [];
-    const flattenedData = data.flat();
-    return flattenedData.filter(r => r.attributes['http.url'] != 'http://localhost:7432/v1/logs');
-  }, [data, searchQuery]);
+    return allSpans.filter(r =>
+      r.attributes['http.url'] != 'http://localhost:7432/v1/logs'
+      && r.attributes['url.full'] != 'http://localhost:7432/v1/logs'
+      && !r.attributes['http.target']?.includes('/_next/static')
+    );
+  }, [allSpans, searchQuery]);
 
-  console.log(filteredRecords);
+  const spansMap = new Map<string, Span[]>();
+  for (const span of filteredRecords) {
+    if (!spansMap.has(span.traceId)) {
+      spansMap.set(span.traceId, []);
+    }
+    spansMap.get(span.traceId)?.push(span);
+  }
+
+  const traces = useMemo(() => {
+    const tracesArr = new Map<string, Trace>();
+
+    for (const span of filteredRecords) {
+      const spans = spansMap.get(span.traceId);
+      const minStartTime = Math.min(...spans?.map(r => r.startTimeUnixNano) ?? []) / 1000000;
+      const maxEndTime = Math.max(...spans?.map(r => r.endTimeUnixNano) ?? []) / 1000000;
+      const timestamp = new Date(minStartTime).toISOString();
+      const durationMs = (maxEndTime - minStartTime);
+
+      const rootSpan = spans?.find(r => r.startTimeUnixNano / 1000000 === minStartTime);
+
+      console.log('rootSpan', rootSpan);
+
+      const statusText = (rootSpan?.attributes['http.response.status_code'] ?? '') + ' ' + (rootSpan?.attributes['http.response.status_text'] ?? '');
+
+      if (!tracesArr.has(span.traceId)) {
+        tracesArr.set(span.traceId, {
+          traceId: span.traceId,
+          timestamp: timestamp,
+          durationMs,
+          statusCode: statusText,
+          name: rootSpan?.name ?? '',
+          service: rootSpan?.resourceAttributes['service.name'] ?? '',
+        });
+      }
+    }
+    return Array.from(tracesArr.values());
+  }, [allSpans, searchQuery]);
+
 
   const hasMore = useMemo(() => {
     if (!data || data.length === 0) return false;
@@ -57,7 +107,8 @@ export function useSpans(searchQuery: string) {
   };
 
   return {
-    data: filteredRecords,
+    data: spansMap,
+    traces,
     isLoading,
     error,
     hasMore,

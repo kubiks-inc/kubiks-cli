@@ -153,7 +153,7 @@ export function TracesTable({
             <TableHead>Service</TableHead>
             <TableHead>Duration</TableHead>
             <TableHead>Status Code</TableHead>
-            <TableHead>Status</TableHead>
+            {/* <TableHead>Status</TableHead> */}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -180,7 +180,7 @@ export function TracesTable({
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <code className="text-xs bg-muted px-2 py-1 rounded">
-                      {trace.traceId}
+                      {trace.traceId.substring(0, 10)}...
                     </code>
                     <CopyButton
                       text={trace.traceId}
@@ -211,7 +211,7 @@ export function TracesTable({
                     </code>
                   )}
                 </TableCell>
-                <TableCell>{getStatusText(trace.status)}</TableCell>
+                {/* <TableCell>{getStatusText(trace.status)}</TableCell> */}
               </TableRow>
             ))}
             {hasMore && (

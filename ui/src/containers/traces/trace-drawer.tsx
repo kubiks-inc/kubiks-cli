@@ -84,7 +84,7 @@ const formatTimestamp = (timestamp: string) => {
 
 const getSpanColor = (span: Span) => {
   // First check for HTTP status code in span attributes
-  const httpStatusCode = span.spanAttributes['http.status_code'];
+  const httpStatusCode = span.attributes['http.response.status_code'];
   if (httpStatusCode !== undefined) {
     const statusCode = parseInt(String(httpStatusCode));
     if (statusCode >= 400) {
@@ -94,8 +94,8 @@ const getSpanColor = (span: Span) => {
   }
 
   // If no HTTP status code, check the span's status code
-  if (span.statusCode) {
-    const statusCode = parseInt(span.statusCode);
+  if (span.attributes['http.response.status_code']) {
+    const statusCode = parseInt(span.attributes['http.response.status_code']);
     if (statusCode >= 400) {
       return 'bg-red-500'; // Error status codes
     }
@@ -162,11 +162,6 @@ const SpanListItem = ({
   const isExpanded = expandedNodes.has(span.spanId);
   const hasChildren = children.length > 0;
 
-  const spanStartTime = new Date(span.timestamp).getTime();
-  const relativeStart = spanStartTime - startTime;
-  const startPercent = (relativeStart / maxDuration) * 100;
-  const durationPercent = (span.durationMs / maxDuration) * 100;
-
   return (
     <div>
       <div
@@ -197,13 +192,13 @@ const SpanListItem = ({
         />
         <span className="text-xs text-muted-foreground min-w-[20px]">1</span>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium truncate">{span.spanName}</div>
+          <div className="text-sm font-medium truncate">{span.name}</div>
           <div className="text-xs text-muted-foreground truncate">
-            {span.serviceName}
+            {span.resourceAttributes['service.name']}
           </div>
         </div>
         <div className="text-xs text-muted-foreground">
-          {formatDuration(span.durationMs)}
+          {formatDuration((span.endTimeUnixNano - span.startTimeUnixNano) / 1000000)}
         </div>
       </div>
 
@@ -261,10 +256,10 @@ const WaterfallChart = ({
       {/* Spans */}
       <div className="space-y-0 w-full">
         {spanRows.map(({ span, level }) => {
-          const spanStartTime = new Date(span.timestamp).getTime();
+          const spanStartTime = new Date(span.startTimeUnixNano / 1000000).getTime();
           const relativeStart = spanStartTime - startTime;
           const startPercent = (relativeStart / maxDuration) * 100;
-          const durationPercent = (span.durationMs / maxDuration) * 100;
+          const durationPercent = ((span.endTimeUnixNano - span.startTimeUnixNano) / 1000000 / maxDuration) * 100;
           const isSelected = selectedSpanId === span.spanId;
 
           return (
@@ -290,7 +285,7 @@ const WaterfallChart = ({
                 />
               </div>
               <div className="absolute right-2 text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-                {formatDuration(span.durationMs)}
+                {formatDuration((span.endTimeUnixNano - span.startTimeUnixNano) / 1000000)}
               </div>
             </div>
           );
@@ -419,35 +414,35 @@ const SpanDetails = ({
       <div className="space-y-3">
         <div>
           <div className="text-xs font-medium text-muted-foreground mb-1">Name</div>
-          <div className="text-sm break-words overflow-hidden">{span.spanName}</div>
+          <div className="text-sm break-words overflow-hidden">{span.name}</div>
         </div>
         <div>
           <div className="text-xs font-medium text-muted-foreground mb-1">Service</div>
-          <div className="text-sm break-words overflow-hidden">{span.serviceName}</div>
+          <div className="text-sm break-words overflow-hidden">{span.resourceAttributes['service.name']}</div>
         </div>
         <div>
           <div className="text-xs font-medium text-muted-foreground mb-1">Duration</div>
-          <div className="text-sm">{formatDuration(span.durationMs)}</div>
+          <div className="text-sm">{formatDuration((span.endTimeUnixNano - span.startTimeUnixNano) / 1000000)}</div>
         </div>
         <div>
           <div className="text-xs font-medium text-muted-foreground mb-1">Kind</div>
-          <div className="text-sm break-words overflow-hidden">{span.spanKind}</div>
+          <div className="text-sm break-words overflow-hidden">{span.kind}</div>
         </div>
         <div>
           <div className="text-xs font-medium text-muted-foreground mb-1">Status</div>
           <div className="text-sm flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full ${getSpanColor(span)}`} />
-            <span className="break-words overflow-hidden">{span.statusCode || 'Unknown'}</span>
+            <span className="break-words overflow-hidden">{span.attributes['http.response.status_code'] || 'Unknown'}</span>
           </div>
         </div>
       </div>
 
       {/* Span Attributes */}
-      {Object.keys(span.spanAttributes).length > 0 && (
+      {Object.keys(span.attributes).length > 0 && (
         <div>
           <div className="text-xs font-medium text-muted-foreground mb-2">Span Attributes</div>
           <div className="space-y-2">
-            {Object.entries(span.spanAttributes).map(([key, value]) => {
+            {Object.entries(span.attributes).map(([key, value]) => {
               const formattedValue = formatAttributeValue(value);
               const longValue = isLongValue(value);
 
@@ -580,14 +575,14 @@ export const TraceDrawer = ({
 
   const startTime = useMemo(() => {
     if (spans.length === 0) return 0;
-    return Math.min(...spans.map(s => new Date(s.timestamp).getTime()));
+    return Math.min(...spans.map(s => new Date(s.startTimeUnixNano / 1000000).getTime()));
   }, [spans]);
 
   const maxDuration = useMemo(() => {
     if (spans.length === 0) return 1;
     // Calculate the actual end time of the trace
     const endTime = Math.max(
-      ...spans.map(s => new Date(s.timestamp).getTime() + s.durationMs)
+      ...spans.map(s => new Date(s.endTimeUnixNano / 1000000).getTime())
     );
     const totalDuration = endTime - startTime;
     // Ensure we have a reasonable minimum duration for visualization
@@ -751,7 +746,7 @@ export const TraceDrawer = ({
         onClose={handleCloseModal}
         attributeKey={modalState.attributeKey}
         attributeValue={modalState.attributeValue}
-        spanName={selectedSpan?.spanName || 'Unknown Span'}
+        spanName={selectedSpan?.name || 'Unknown Span'}
       />
     </Drawer>
   );
