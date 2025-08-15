@@ -3,11 +3,13 @@ package commands
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -86,7 +88,30 @@ func (c *ServerCommand) startServer() error {
 		return fmt.Errorf("failed to access embedded UI: %w", err)
 	}
 	uiMux := http.NewServeMux()
-	uiMux.Handle("/", http.FileServer(http.FS(distFS)))
+	uiHTTPFS := http.FS(distFS)
+	uiFileServer := http.FileServer(uiHTTPFS)
+	uiMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// Serve static assets and index normally
+		cleanPath := strings.TrimPrefix(r.URL.Path, "/")
+		if cleanPath == "" || strings.HasPrefix(cleanPath, "assets/") || cleanPath == "index.html" {
+			uiFileServer.ServeHTTP(w, r)
+			return
+		}
+		if f, err := uiHTTPFS.Open(cleanPath); err == nil {
+			_ = f.Close()
+			uiFileServer.ServeHTTP(w, r)
+			return
+		}
+		// SPA fallback: return embedded index.html
+		indexBytes, err := fs.ReadFile(distFS, "index.html")
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(indexBytes)
+	})
 	uiHTTPServer := &http.Server{
 		Addr:         ":" + c.uiPort,
 		Handler:      uiMux,
