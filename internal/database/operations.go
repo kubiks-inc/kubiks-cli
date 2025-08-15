@@ -60,6 +60,123 @@ func (db *DB) InsertTrace(traceID, data string) (int64, error) {
 	return id, nil
 }
 
+// InsertLogsFromPayload parses an OTEL logs payload and inserts one row per log record.
+// Each inserted row contains a minimal payload with a single log preserved, along with
+// the original resource attributes so that ResourceAttributes are available per record.
+func (db *DB) InsertLogsFromPayload(payload []byte) (int, error) {
+	// Define a minimal structure to unmarshal the incoming payload
+	var in struct {
+		ResourceLogs []struct {
+			Resource  map[string]interface{} `json:"resource"`
+			ScopeLogs []struct {
+				Scope      map[string]interface{}   `json:"scope"`
+				LogRecords []map[string]interface{} `json:"logRecords"`
+			} `json:"scopeLogs"`
+		} `json:"resourceLogs"`
+	}
+
+	if err := json.Unmarshal(payload, &in); err != nil {
+		return 0, fmt.Errorf("failed to parse OTEL logs payload: %w", err)
+	}
+
+	inserted := 0
+
+	// Helper to convert OTEL attributes (array or map) to a flat key-value map
+	convertAttributesToMap := func(attributes interface{}) map[string]interface{} {
+		result := make(map[string]interface{})
+		switch attrs := attributes.(type) {
+		case []interface{}:
+			for _, a := range attrs {
+				am, ok := a.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				key, _ := am["key"].(string)
+				if key == "" {
+					continue
+				}
+				if val, ok := am["value"].(map[string]interface{}); ok {
+					if v, ok := val["stringValue"]; ok {
+						result[key] = v
+						continue
+					}
+					if v, ok := val["intValue"]; ok {
+						result[key] = v
+						continue
+					}
+					if v, ok := val["doubleValue"]; ok {
+						result[key] = v
+						continue
+					}
+					if v, ok := val["boolValue"]; ok {
+						result[key] = v
+						continue
+					}
+				}
+			}
+		case map[string]interface{}:
+			for k, v := range attrs {
+				result[k] = v
+			}
+		}
+		return result
+	}
+
+	// Iterate resourceLogs -> scopeLogs -> logRecords and insert a record for each log
+	for _, rl := range in.ResourceLogs {
+		// Extract resource attributes and convert to map
+		var resourceAttrsMap map[string]interface{}
+		if rl.Resource != nil {
+			if v, ok := rl.Resource["attributes"]; ok {
+				resourceAttrsMap = convertAttributesToMap(v)
+			}
+		}
+
+		for _, sl := range rl.ScopeLogs {
+			for _, lr := range sl.LogRecords {
+				// Extract log attributes
+				attributesMap := convertAttributesToMap(lr["attributes"])
+
+				// Determine traceId for this log record (logs often carry it in attributes)
+				traceID := "unknown"
+				if v, ok := lr["traceId"].(string); ok && v != "" {
+					traceID = v
+				} else if v, ok := attributesMap["traceId"].(string); ok && v != "" {
+					traceID = v
+				} else if v, ok := attributesMap["trace.id"].(string); ok && v != "" {
+					traceID = v
+				} else if v, ok := attributesMap["trace_id"].(string); ok && v != "" {
+					traceID = v
+				}
+
+				// Build a flattened per-log record structure
+				out := map[string]interface{}{
+					"timeUnixNano":         lr["timeUnixNano"],
+					"observedTimeUnixNano": lr["observedTimeUnixNano"],
+					"severityText":         lr["severityText"],
+					"severityNumber":       lr["severityNumber"],
+					"body":                 lr["body"],
+					"attributes":           attributesMap,
+					"resourceAttributes":   resourceAttrsMap,
+				}
+
+				// Marshal back to JSON for storage
+				dataBytes, err := json.Marshal(out)
+				if err != nil {
+					return inserted, fmt.Errorf("failed to marshal per-log payload: %w", err)
+				}
+
+				if _, err := db.InsertLog(traceID, string(dataBytes)); err != nil {
+					return inserted, fmt.Errorf("failed to insert per-log record: %w", err)
+				}
+				inserted++
+			}
+		}
+	}
+
+	return inserted, nil
+}
+
 // InsertTracesFromPayload parses an OTEL traces payload and inserts one row per span.
 // Each inserted row contains a minimal payload with a single span preserved under
 // resourceSpans -> scopeSpans -> spans, along with the original resource attributes

@@ -79,16 +79,18 @@ func (s *Server) OTELLogsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	traceID := database.ExtractTraceID(body)
-
-	_, err = s.db.InsertLog(traceID, string(body))
+	// Insert one record per log record, carrying resource attributes
+	count, err := s.db.InsertLogsFromPayload(body)
 	if err != nil {
-		fmt.Printf("❌ Failed to store log in database: %v\n", err)
+		fmt.Printf("❌ Failed to store logs in database: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, `{"error":"failed to store logs"}`)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, `{"partialSuccess":{}}`)
+	fmt.Fprintf(w, `{"partialSuccess":{},"inserted":%d}`, count)
 }
 
 // OTELMetricsHandler handles OTEL metrics endpoint
