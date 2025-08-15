@@ -33,35 +33,35 @@ const getStatusText = (status: string) => {
       if (num >= 200 && num < 300) {
         return (
           <span key={idx} className="text-emerald-600 font-medium">
-            {num} Success
+            {num}
           </span>
         );
       }
       if (num >= 300 && num < 400) {
         return (
           <span key={idx} className="text-blue-600 font-medium">
-            {num} Redirect
+            {num}
           </span>
         );
       }
       if (num >= 400 && num < 500) {
         return (
           <span key={idx} className="text-amber-600 font-medium">
-            {num} Warning
+            {num}
           </span>
         );
       }
       if (num >= 500 && num < 600) {
         return (
           <span key={idx} className="text-red-600 font-medium">
-            {num} Error
+            {num}
           </span>
         );
       }
     }
     return (
       <span key={idx} className="text-muted-foreground font-medium">
-        {code} Unknown
+        {code}
       </span>
     );
   });

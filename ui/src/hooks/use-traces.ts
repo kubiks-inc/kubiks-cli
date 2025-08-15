@@ -28,7 +28,7 @@ export function useSpans(searchQuery: string) {
     return spans.filter(r =>
       r.attributes['http.url'] != 'http://localhost:7432/v1/logs'
       && r.attributes['url.full'] != 'http://localhost:7432/v1/logs'
-      && !r.attributes['http.target']?.includes('/_next/static')
+      && !r.attributes['http.target']?.includes('_next')
     );
   }, [spans, searchQuery]);
 
@@ -63,11 +63,21 @@ export function useSpans(searchQuery: string) {
 
       const statusText = statusCodes.join(', ');
 
+      let spanName = rootSpan?.attributes['next.span_name']
+
+      if (!spanName) {
+        const method = spans.find(r => r.attributes['http.method'])?.attributes['http.method'] ?? ''
+        const target = spans.find(r => r.attributes['http.target'])?.attributes['http.target'] ?? ''
+        const url = spans.find(r => r.attributes['http.url'])?.attributes['http.url'] ?? ''
+
+        spanName = `${method} ${target ?? url}`
+      }
+
       tracesArr.set(traceId, {
         traceId: traceId,
         timestamp: timestamp,
         durationMs,
-        name: rootSpan?.name ?? '',
+        name: spanName,
         service: rootSpan?.resourceAttributes['service.name'] ?? '',
         statusCode: statusText,
       });
