@@ -10,7 +10,6 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
-	"os/exec"
 	"os/signal"
 	"strconv"
 	"strings"
@@ -239,12 +238,7 @@ func (c *ServerCommand) startServer() error {
 	}()
 
 	// Attempt to open the UI in the default browser
-	go func() {
-		url := fmt.Sprintf("http://localhost:%s", c.uiPort)
-		if err := exec.Command("open", url).Start(); err != nil {
-			_ = exec.Command("xdg-open", url).Start()
-		}
-	}()
+	// Removed: Do not auto-open browser. We now only print the URL for the user.
 
 	// Wait for shutdown signal
 	<-shutdownChan

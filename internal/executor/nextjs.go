@@ -3,6 +3,7 @@ package executor
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -84,10 +85,11 @@ func (e *NextJSExecutor) RunDirect() error {
 		return err
 	}
 
-	// Connect stdio for interactive experience
+	// Do not stream Next.js stdout/stderr to our console. Keep a clean screen.
+	// We still attach Stdin for potential interactive needs.
 	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = io.Discard
+	cmd.Stderr = io.Discard
 
 	// Set up signal handling for graceful shutdown
 	sigChan := make(chan os.Signal, 1)
@@ -97,6 +99,23 @@ func (e *NextJSExecutor) RunDirect() error {
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to start command: %w", err)
 	}
+
+	// Render a simple banner with the Web Interface URL
+	fmt.Println()
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+	fmt.Println(" Kubiks Dev is running")
+	fmt.Println()
+	fmt.Println(" Web Interface:")
+	fmt.Println("  • http://localhost:7431")
+	fmt.Println()
+	fmt.Println(" OTEL Collector:")
+	fmt.Println("  • http://localhost:7432")
+	fmt.Println()
+	fmt.Println(" MCP SSE Endpoint:")
+	fmt.Println("  • http://localhost:7433/mcp/sse")
+	fmt.Println()
+	fmt.Println(" Press Ctrl+C to stop.")
+	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
 	// Handle signals and command completion concurrently
 	go func() {
