@@ -162,3 +162,26 @@ func (db *DB) GetTracesPaginated(limit, offset int) ([]*OTELRecord, error) {
 
 	return records, nil
 }
+
+// ClearAll removes all data from OTEL tables
+func (db *DB) ClearAll() error {
+	tx, err := db.conn.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin tx: %w", err)
+	}
+	stmts := []string{
+		"DELETE FROM otel_logs",
+		"DELETE FROM otel_metrics",
+		"DELETE FROM otel_traces",
+	}
+	for _, s := range stmts {
+		if _, err := tx.Exec(s); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("failed to execute '%s': %w", s, err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit clear all: %w", err)
+	}
+	return nil
+}

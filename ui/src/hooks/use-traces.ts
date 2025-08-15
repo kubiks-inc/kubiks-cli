@@ -48,8 +48,10 @@ export function useTraces(searchQuery: string) {
     if (!searchQuery) return records;
     const q = searchQuery.toLowerCase();
     return records.filter(r =>
-      (r.trace_id && r.trace_id.toLowerCase().includes(q)) ||
-      (r.servicename && r.servicename.toLowerCase().includes(q))
+      ((r.trace_id && r.trace_id.toLowerCase().includes(q)) ||
+        (r.servicename && r.servicename.toLowerCase().includes(q))) &&
+      // filter out internal logs posting to our OTEL endpoint
+      !JSON.stringify(r.data).includes('"url.full":"http://localhost:7432/v1/logs"')
     );
   }, [flatRecords, searchQuery]);
 

@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -30,10 +32,18 @@ type ServerCommand struct {
 
 // NewServerCommand creates a new server command
 func NewServerCommand() *ServerCommand {
+	otel := findFreePort()
+	mcp := findFreePort()
+	if otel == "" {
+		otel = "7432"
+	}
+	if mcp == "" {
+		mcp = "7433"
+	}
 	return &ServerCommand{
 		uiPort:     "7431",
-		otelPort:   "7432",
-		mcpPort:    "7433",
+		otelPort:   otel,
+		mcpPort:    mcp,
 		mcpManager: mcpconfig.NewManager(),
 	}
 }
@@ -74,6 +84,8 @@ func (c *ServerCommand) startServer() error {
 	otelMux.HandleFunc("/stats", otelServer.StatsHandler)
 	// public traces endpoint
 	otelMux.HandleFunc("/api/traces", otelServer.TracesHandler)
+	// clean endpoint
+	otelMux.HandleFunc("/clean", otelServer.CleanHandler)
 
 	// Create OTEL HTTP server
 	otelHTTPServer := &http.Server{
@@ -246,4 +258,20 @@ func (c *ServerCommand) startServer() error {
 	}
 
 	return nil
+}
+
+// GetOTELPort returns the selected OTEL port
+func (c *ServerCommand) GetOTELPort() string { return c.otelPort }
+
+// GetMCPPort returns the selected MCP port
+func (c *ServerCommand) GetMCPPort() string { return c.mcpPort }
+
+func findFreePort() string {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return ""
+	}
+	defer l.Close()
+	addr := l.Addr().(*net.TCPAddr)
+	return strconv.Itoa(addr.Port)
 }

@@ -161,6 +161,29 @@ func (s *Server) StatsHandler(w http.ResponseWriter, r *http.Request) {
 	}`, stats["logs_count"], stats["metrics_count"], stats["traces_count"], types.GetDatabasePath())
 }
 
+// CleanHandler deletes all data
+func (s *Server) CleanHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if err := s.db.ClearAll(); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Failed to clear DB: %v", err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, `{"ok":true}`)
+}
+
 // TracesHandler returns paginated traces as JSON (no auth) with CORS *
 func (s *Server) TracesHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")

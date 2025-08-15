@@ -72,10 +72,14 @@ func (e *NextJSExecutor) RunDirect() error {
 	}
 
 	serviceName := e.getServiceNameFromPackageJSON()
+	collectorPort := os.Getenv("KUBIKS_OTEL_PORT")
+	if collectorPort == "" {
+		collectorPort = "7432"
+	}
 	fmt.Println("🚀 Starting Next.js development server with OpenTelemetry instrumentation...")
 	fmt.Printf("📊 Instrumentation file: %s\n", e.instrumentationPath)
 	fmt.Printf("🏷️  Service name: %s\n", serviceName)
-	fmt.Println("🔗 OTEL Endpoint: http://localhost:7432")
+	fmt.Printf("🔗 OTEL Endpoint: http://localhost:%s\n", collectorPort)
 	fmt.Println("📡 OTEL Protocol: http/json")
 
 	cmd, err := e.createCommand()
@@ -147,8 +151,14 @@ func (e *NextJSExecutor) createCommand() (*exec.Cmd, error) {
 		env = append(env, "NODE_OPTIONS="+nodeOptions)
 	}
 
+	collectorPort := os.Getenv("KUBIKS_OTEL_PORT")
+	if collectorPort == "" {
+		collectorPort = "7432"
+	}
+	collectorURL := fmt.Sprintf("http://localhost:%s", collectorPort)
+
 	// Set OpenTelemetry environment variables
-	env = append(env, "COLLECTOR_URL=http://localhost:7432")
+	env = append(env, "COLLECTOR_URL="+collectorURL)
 	env = append(env, "OTEL_EXPORTER_OTLP_PROTOCOL=http/json")
 	env = append(env, "OTEL_SERVICE_NAME="+serviceName)
 
