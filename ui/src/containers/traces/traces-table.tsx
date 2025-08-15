@@ -26,45 +26,42 @@ const getStatusText = (status: string) => {
   if (!status) {
     return <span className="text-muted-foreground font-medium">Unknown</span>;
   }
-  const statusCodes = status.split(', ');
-  return statusCodes.map((code, idx) => {
-    const num = Number(code);
-    if (!isNaN(num)) {
-      if (num >= 200 && num < 300) {
-        return (
-          <span key={idx} className="text-emerald-600 font-medium">
-            {num}
-          </span>
-        );
-      }
-      if (num >= 300 && num < 400) {
-        return (
-          <span key={idx} className="text-blue-600 font-medium">
-            {num}
-          </span>
-        );
-      }
-      if (num >= 400 && num < 500) {
-        return (
-          <span key={idx} className="text-amber-600 font-medium">
-            {num}
-          </span>
-        );
-      }
-      if (num >= 500 && num < 600) {
-        return (
-          <span key={idx} className="text-red-600 font-medium">
-            {num}
-          </span>
-        );
-      }
+  const num = Number(status);
+  if (!isNaN(num)) {
+    if (num >= 200 && num < 300) {
+      return (
+        <span className="text-emerald-600 font-medium">
+          {num}
+        </span>
+      );
     }
-    return (
-      <span key={idx} className="text-muted-foreground font-medium">
-        {code}
-      </span>
-    );
-  });
+    if (num >= 300 && num < 400) {
+      return (
+        <span className="text-blue-600 font-medium">
+          {num}
+        </span>
+      );
+    }
+    if (num >= 400 && num < 500) {
+      return (
+        <span className="text-amber-600 font-medium">
+          {num}
+        </span>
+      );
+    }
+    if (num >= 500 && num < 600) {
+      return (
+        <span className="text-red-600 font-medium">
+          {num}
+        </span>
+      );
+    }
+  }
+  return (
+    <span className="text-muted-foreground font-medium">
+      {status}
+    </span>
+  );
 };
 
 
