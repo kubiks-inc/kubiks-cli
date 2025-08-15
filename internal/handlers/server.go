@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -130,16 +131,20 @@ func (s *Server) OTELTracesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	traceID := database.ExtractTraceID(body)
+	fmt.Println("OTELTracesHandler")
 
-	_, err = s.db.InsertTrace(traceID, string(body))
+	// Insert one record per span, carrying resource attributes
+	count, err := s.db.InsertTracesFromPayload(body)
 	if err != nil {
-		fmt.Printf("❌ Failed to store trace in database: %v\n", err)
+		fmt.Printf("❌ Failed to store traces in database: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, `{"error":"failed to store traces"}`)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, `{"partialSuccess":{}}`)
+	fmt.Fprintf(w, `{"partialSuccess":{},"inserted":%d}`, count)
 }
 
 // StatsHandler returns database statistics
@@ -220,15 +225,21 @@ func (s *Server) TracesHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	results := make([]interface{}, len(records))
+
+	for i, rec := range records {
+		var data interface{}
+
+		if err := json.Unmarshal([]byte(rec.Data), &data); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "Failed to unmarshal data: %v", err)
+			return
+		}
+
+		results[i] = data
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	fmt.Fprintf(w, "[")
-	for i, rec := range records {
-		if i > 0 {
-			fmt.Fprintf(w, ",")
-		}
-		fmt.Fprintf(w, `{"id":%d,"trace_id":"%s","servicename":"%s","timestamp":"%s","data":%s}`,
-			rec.ID, rec.TraceID, rec.ServiceName, rec.Timestamp.Format("2006-01-02T15:04:05Z07:00"), rec.Data)
-	}
-	fmt.Fprintf(w, "]")
+	json.NewEncoder(w).Encode(results)
 }

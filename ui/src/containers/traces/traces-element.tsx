@@ -3,8 +3,7 @@
 import { useState } from 'react';
 import { TracesTable } from './traces-table';
 import { TraceDrawer } from './trace-drawer';
-import { useTraces } from '@/hooks/use-traces';
-import { extractSpansFromRecord } from '@/lib/otel';
+import { useSpans } from '@/hooks/use-traces';
 import { Trace } from '@/types/trace';
 
 interface TracesContentProps {
@@ -19,14 +18,16 @@ export const TracesContent = ({ timerange }: TracesContentProps) => {
 
   const {
     data: allTraces,
-    recordsByTraceId,
     isLoading,
     error,
     hasMore,
     loadMore,
     resetTraces,
     isValidating,
-  } = useTraces('');
+  } = useSpans('');
+
+  console.log(allTraces);
+  return null;
 
   const handleTraceClick = (trace: Trace) => {
     setSelectedTrace(trace);

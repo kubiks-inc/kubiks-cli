@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 )
 
@@ -57,6 +58,116 @@ func (db *DB) InsertTrace(traceID, data string) (int64, error) {
 	}
 
 	return id, nil
+}
+
+// InsertTracesFromPayload parses an OTEL traces payload and inserts one row per span.
+// Each inserted row contains a minimal payload with a single span preserved under
+// resourceSpans -> scopeSpans -> spans, along with the original resource attributes
+// so that ResourceAttributes are available per trace/record.
+func (db *DB) InsertTracesFromPayload(payload []byte) (int, error) {
+	// Define a minimal structure to unmarshal the incoming payload
+	var in struct {
+		ResourceSpans []struct {
+			Resource   map[string]interface{} `json:"resource"`
+			ScopeSpans []struct {
+				Scope map[string]interface{}   `json:"scope"`
+				Spans []map[string]interface{} `json:"spans"`
+			} `json:"scopeSpans"`
+		} `json:"resourceSpans"`
+	}
+
+	if err := json.Unmarshal(payload, &in); err != nil {
+		return 0, fmt.Errorf("failed to parse OTEL traces payload: %w", err)
+	}
+
+	inserted := 0
+
+	// Helper to convert OTEL attributes (array or map) to a flat key-value map
+	convertAttributesToMap := func(attributes interface{}) map[string]interface{} {
+		result := make(map[string]interface{})
+		switch attrs := attributes.(type) {
+		case []interface{}:
+			for _, a := range attrs {
+				am, ok := a.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				key, _ := am["key"].(string)
+				if key == "" {
+					continue
+				}
+				if val, ok := am["value"].(map[string]interface{}); ok {
+					if v, ok := val["stringValue"]; ok {
+						result[key] = v
+						continue
+					}
+					if v, ok := val["intValue"]; ok {
+						result[key] = v
+						continue
+					}
+					if v, ok := val["doubleValue"]; ok {
+						result[key] = v
+						continue
+					}
+					if v, ok := val["boolValue"]; ok {
+						result[key] = v
+						continue
+					}
+				}
+			}
+		case map[string]interface{}:
+			for k, v := range attrs {
+				result[k] = v
+			}
+		}
+		return result
+	}
+
+	// Iterate resourceSpans -> scopeSpans -> spans and insert a record for each span
+	for _, rs := range in.ResourceSpans {
+		for _, ss := range rs.ScopeSpans {
+			for _, sp := range ss.Spans {
+				// Determine traceId for this span
+				traceID := "unknown"
+				if v, ok := sp["traceId"].(string); ok && v != "" {
+					traceID = v
+				}
+
+				// Extract resource attributes and convert to map
+				var resourceAttrsMap map[string]interface{}
+				if rs.Resource != nil {
+					if v, ok := rs.Resource["attributes"]; ok {
+						resourceAttrsMap = convertAttributesToMap(v)
+					}
+				}
+
+				// Build a flattened per-span record structure
+				out := map[string]interface{}{
+					"traceId":            sp["traceId"],
+					"spanId":             sp["spanId"],
+					"name":               sp["name"],
+					"kind":               sp["kind"],
+					"startTimeUnixNano":  sp["startTimeUnixNano"],
+					"endTimeUnixNano":    sp["endTimeUnixNano"],
+					"attributes":         convertAttributesToMap(sp["attributes"]),
+					"resourceAttributes": resourceAttrsMap,
+				}
+
+				// Marshal back to JSON for storage
+				dataBytes, err := json.Marshal(out)
+				if err != nil {
+					return inserted, fmt.Errorf("failed to marshal per-span trace payload: %w", err)
+				}
+
+				if _, err := db.InsertTrace(traceID, string(dataBytes)); err != nil {
+					return inserted, fmt.Errorf("failed to insert per-span trace: %w", err)
+				}
+				inserted++
+			}
+		}
+	}
+
+	return inserted, nil
 }
 
 // GetStats returns database statistics

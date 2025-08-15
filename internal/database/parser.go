@@ -80,6 +80,11 @@ func findServiceName(data interface{}) string {
 			}
 		}
 
+		// Also support flattened payloads where resource attributes are at top-level under "resourceAttributes"
+		if serviceName := extractServiceNameFromAttributes(v["resourceAttributes"]); serviceName != "" {
+			return serviceName
+		}
+
 		// Check for direct attributes (could be at any level)
 		if serviceName := extractServiceNameFromAttributes(v["attributes"]); serviceName != "" {
 			return serviceName
