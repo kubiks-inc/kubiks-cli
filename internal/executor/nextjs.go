@@ -144,38 +144,38 @@ func (e *NextJSExecutor) createCommand() (*exec.Cmd, error) {
 	cmd := exec.Command("npm", "run", "dev")
 
 	// Get current environment
-	// env := os.Environ()
+	env := os.Environ()
 
 	// Get service name from package.json
-	// serviceName := e.getServiceNameFromPackageJSON()
+	serviceName := e.getServiceNameFromPackageJSON()
 
 	// Set NODE_OPTIONS with the instrumentation file
-	// nodeOptions := fmt.Sprintf("--require %s", e.instrumentationPath)
+	nodeOptions := fmt.Sprintf("--require %s", e.instrumentationPath)
 
-	// // Check if NODE_OPTIONS already exists and append to it
-	// var nodeOptionsSet bool
-	// for i, envVar := range env {
-	// 	if len(envVar) > 12 && envVar[:12] == "NODE_OPTIONS" {
-	// 		env[i] = envVar + " " + nodeOptions
-	// 		nodeOptionsSet = true
-	// 		break
-	// 	}
-	// }
+	// Check if NODE_OPTIONS already exists and append to it
+	var nodeOptionsSet bool
+	for i, envVar := range env {
+		if len(envVar) > 12 && envVar[:12] == "NODE_OPTIONS" {
+			env[i] = envVar + " " + nodeOptions
+			nodeOptionsSet = true
+			break
+		}
+	}
 
-	// // If NODE_OPTIONS doesn't exist, add it
-	// if !nodeOptionsSet {
-	// 	env = append(env, "NODE_OPTIONS="+nodeOptions)
-	// }
+	// If NODE_OPTIONS doesn't exist, add it
+	if !nodeOptionsSet {
+		env = append(env, "NODE_OPTIONS="+nodeOptions)
+	}
 
-	// collectorPort := "7432"
-	// collectorURL := fmt.Sprintf("http://localhost:%s", collectorPort)
+	collectorPort := "7432"
+	collectorURL := fmt.Sprintf("http://localhost:%s", collectorPort)
 
-	// // Set OpenTelemetry environment variables
-	// env = append(env, "COLLECTOR_URL="+collectorURL)
-	// env = append(env, "OTEL_EXPORTER_OTLP_PROTOCOL=http/json")
-	// env = append(env, "OTEL_SERVICE_NAME="+serviceName)
+	// Set OpenTelemetry environment variables
+	env = append(env, "COLLECTOR_URL="+collectorURL)
+	env = append(env, "OTEL_EXPORTER_OTLP_PROTOCOL=http/json")
+	env = append(env, "OTEL_SERVICE_NAME="+serviceName)
 
-	// cmd.Env = env
+	cmd.Env = env
 
 	// Set working directory to current directory
 	cmd.Dir, _ = os.Getwd()

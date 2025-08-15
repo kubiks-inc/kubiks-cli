@@ -1,8 +1,7 @@
-const { registerOTel, OTLPHttpJsonTraceExporter } = require('@vercel/otel');
+const { KubiksSDK } = require('@kubiks/otel-nextjs');
 
-registerOTel({
-  serviceName: 'kubiks-cli',
-  traceExporter: new OTLPHttpJsonTraceExporter({
-    url: 'http://localhost:7432/v1/traces',
-  }),
-});
+// The service name will be automatically set from OTEL_SERVICE_NAME environment variable
+// which is set by kubiks-cli when starting the Next.js app
+const sdk = new KubiksSDK();
+
+sdk.start();

@@ -9,10 +9,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@kubiks/otel-nextjs": "^1.0.25",
-    "@opentelemetry/api": "^1.8.0",
-    "@opentelemetry/api-logs": "^0.57.2",
-    "@vercel/otel": "^1.13.0"
+    "@kubiks/otel-nextjs": "file:../../otel-nextjs"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
