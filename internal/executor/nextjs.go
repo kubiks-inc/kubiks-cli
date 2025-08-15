@@ -72,10 +72,7 @@ func (e *NextJSExecutor) RunDirect() error {
 	}
 
 	serviceName := e.getServiceNameFromPackageJSON()
-	collectorPort := os.Getenv("KUBIKS_OTEL_PORT")
-	if collectorPort == "" {
-		collectorPort = "7432"
-	}
+	collectorPort := "7432"
 	fmt.Println("🚀 Starting Next.js development server with OpenTelemetry instrumentation...")
 	fmt.Printf("📊 Instrumentation file: %s\n", e.instrumentationPath)
 	fmt.Printf("🏷️  Service name: %s\n", serviceName)
@@ -151,10 +148,7 @@ func (e *NextJSExecutor) createCommand() (*exec.Cmd, error) {
 		env = append(env, "NODE_OPTIONS="+nodeOptions)
 	}
 
-	collectorPort := os.Getenv("KUBIKS_OTEL_PORT")
-	if collectorPort == "" {
-		collectorPort = "7432"
-	}
+	collectorPort := "7432"
 	collectorURL := fmt.Sprintf("http://localhost:%s", collectorPort)
 
 	// Set OpenTelemetry environment variables

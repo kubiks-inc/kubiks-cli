@@ -6,7 +6,7 @@ export type TraceRecord = {
   data: unknown
 }
 
-const API_BASE = 'http://localhost:7432'
+const API_BASE = ''
 
 export async function fetchTraces(params?: { limit?: number; offset?: number }): Promise<TraceRecord[]> {
   const limit = params?.limit ?? 5

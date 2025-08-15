@@ -63,7 +63,7 @@ export function TracesTable({
 }: TracesTableProps) {
   const handleClear = async () => {
     try {
-      await fetch('http://localhost:7432/clean', { method: 'POST' });
+      await fetch('/clean', { method: 'POST' });
       window.location.reload();
     } catch (e) {
       console.error('Failed to clear data', e);

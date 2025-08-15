@@ -34,11 +34,13 @@ func main() {
 			var wg sync.WaitGroup
 			errChan := make(chan error, 2)
 
+			// Create server command (static ports)
+			serverCommand := commands.NewServerCommand()
+
 			// Start server in goroutine
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				serverCommand := commands.NewServerCommand()
 				if err := serverCommand.RunDirect(); err != nil {
 					errChan <- fmt.Errorf("server error: %v", err)
 				}

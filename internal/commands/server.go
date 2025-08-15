@@ -7,6 +7,8 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -32,18 +34,10 @@ type ServerCommand struct {
 
 // NewServerCommand creates a new server command
 func NewServerCommand() *ServerCommand {
-	otel := findFreePort()
-	mcp := findFreePort()
-	if otel == "" {
-		otel = "7432"
-	}
-	if mcp == "" {
-		mcp = "7433"
-	}
 	return &ServerCommand{
 		uiPort:     "7431",
-		otelPort:   otel,
-		mcpPort:    mcp,
+		otelPort:   "7432",
+		mcpPort:    "7433",
 		mcpManager: mcpconfig.NewManager(),
 	}
 }
@@ -104,6 +98,14 @@ func (c *ServerCommand) startServer() error {
 	uiMux := http.NewServeMux()
 	uiHTTPFS := http.FS(distFS)
 	uiFileServer := http.FileServer(uiHTTPFS)
+
+	// Reverse proxy to OTEL server for API routes
+	targetURL, _ := url.Parse("http://localhost:" + c.otelPort)
+	proxy := httputil.NewSingleHostReverseProxy(targetURL)
+	uiMux.Handle("/api/", proxy)
+	uiMux.Handle("/clean", proxy)
+	uiMux.Handle("/stats", proxy)
+
 	uiMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		// Serve static assets and index normally
 		cleanPath := strings.TrimPrefix(r.URL.Path, "/")
