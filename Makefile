@@ -12,6 +12,8 @@ MAIN_FILE=main.go
 build:
 	@echo "Building $(BINARY_NAME)..."
 	@mkdir -p $(BIN_DIR)
+	@echo "Building UI..."
+	@cd ui && npm install --silent && npm run build
 	@go build -o $(BIN_DIR)/$(BINARY_NAME) $(MAIN_FILE)
 	@echo "Building instrumentation..."
 	@cd instrumentation && npm install --silent && npm run build
@@ -72,6 +74,8 @@ build-all: clean
 	@mkdir -p $(BIN_DIR)
 	@echo "Building instrumentation..."
 	@cd instrumentation && npm install --silent && npm run build
+	@echo "Building UI..."
+	@cd ui && npm install --silent && npm run build
 	@echo "Building for Linux (amd64)..."
 	@GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o $(BIN_DIR)/$(BINARY_NAME)-linux-amd64 $(MAIN_FILE)
 	@echo "Building for Linux (arm64)..."

@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"sync"
 	"syscall"
@@ -14,10 +15,12 @@ import (
 	"github.com/kubiks-inc/kubiks-cli/internal/handlers"
 	"github.com/kubiks-inc/kubiks-cli/internal/mcp"
 	"github.com/kubiks-inc/kubiks-cli/internal/mcpconfig"
+	"github.com/kubiks-inc/kubiks-cli/internal/ui"
 )
 
 // ServerCommand handles server commands (OTEL, MCP, etc.)
 type ServerCommand struct {
+	uiPort     string
 	otelPort   string
 	mcpPort    string
 	mcpManager *mcpconfig.Manager
@@ -26,6 +29,7 @@ type ServerCommand struct {
 // NewServerCommand creates a new server command
 func NewServerCommand() *ServerCommand {
 	return &ServerCommand{
+		uiPort:     "7431",
 		otelPort:   "7432",
 		mcpPort:    "7433",
 		mcpManager: mcpconfig.NewManager(),
@@ -71,6 +75,21 @@ func (c *ServerCommand) startServer() error {
 	otelHTTPServer := &http.Server{
 		Addr:         ":" + c.otelPort,
 		Handler:      otelMux,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	// Create UI HTTP server to serve embedded React UI
+	distFS, err := ui.DistFS()
+	if err != nil {
+		return fmt.Errorf("failed to access embedded UI: %w", err)
+	}
+	uiMux := http.NewServeMux()
+	uiMux.Handle("/", http.FileServer(http.FS(distFS)))
+	uiHTTPServer := &http.Server{
+		Addr:         ":" + c.uiPort,
+		Handler:      uiMux,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,
@@ -147,6 +166,7 @@ func (c *ServerCommand) startServer() error {
 	fmt.Printf("🚀 Kubiks Servers starting...\n")
 	fmt.Printf("📡 OpenTelemetry server running on http://localhost:%s\n", c.otelPort)
 	fmt.Printf("🔗 MCP server running on http://localhost:%s/mcp/sse\n", c.mcpPort)
+	fmt.Printf("🖥️  UI available at http://localhost:%s\n", c.uiPort)
 	fmt.Printf("💡 Press Ctrl+C to stop the servers\n\n")
 
 	// Start OTEL HTTP server
@@ -159,6 +179,16 @@ func (c *ServerCommand) startServer() error {
 		}
 	}()
 
+	// Start UI HTTP server
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := uiHTTPServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Printf("UI server failed: %v", err)
+			triggerShutdown()
+		}
+	}()
+
 	// Start MCP HTTP server
 	wg.Add(1)
 	go func() {
@@ -166,6 +196,14 @@ func (c *ServerCommand) startServer() error {
 		if err := mcpHTTPServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Printf("MCP server failed: %v", err)
 			triggerShutdown()
+		}
+	}()
+
+	// Attempt to open the UI in the default browser
+	go func() {
+		url := fmt.Sprintf("http://localhost:%s", c.uiPort)
+		if err := exec.Command("open", url).Start(); err != nil {
+			_ = exec.Command("xdg-open", url).Start()
 		}
 	}()
 
