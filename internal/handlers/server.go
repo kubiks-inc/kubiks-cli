@@ -241,3 +241,44 @@ func (s *Server) TracesHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(results)
 }
+
+// TracesAllHandler returns all traces as JSON (no auth) with CORS *
+func (s *Server) TracesAllHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	records, err := s.db.GetTracesAll()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Failed to get all traces: %v", err)
+		return
+	}
+
+	results := make([]interface{}, len(records))
+
+	for i, rec := range records {
+		var data interface{}
+
+		if err := json.Unmarshal([]byte(rec.Data), &data); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "Failed to unmarshal data: %v", err)
+			return
+		}
+
+		results[i] = data
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(results)
+}

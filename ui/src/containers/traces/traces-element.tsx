@@ -20,10 +20,7 @@ export const TracesContent = ({ timerange }: TracesContentProps) => {
     traces,
     isLoading,
     error,
-    hasMore,
-    loadMore,
     resetTraces,
-    isValidating,
   } = useSpans('');
 
   console.log('allTraces', traces);
@@ -46,9 +43,6 @@ export const TracesContent = ({ timerange }: TracesContentProps) => {
           <TracesTable
             traces={traces}
             onTraceClick={handleTraceClick}
-            onLoadMore={loadMore}
-            hasMore={hasMore}
-            isLoadingMore={isValidating && traces.length > 0}
             isLoading={isLoading}
             error={error}
           />

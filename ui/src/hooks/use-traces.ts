@@ -1,58 +1,37 @@
 'use client';
 
-import useSWRInfinite from 'swr/infinite';
+import useSWR from 'swr';
 import { useMemo } from 'react';
-import { fetchSpans } from '@/api/traces';
+import { fetchAllSpans } from '@/api/traces';
 import { Span } from '@/types/span';
 import { Trace } from '@/types/trace';
 
-
-const PAGE_LIMIT = 50;
-
 export function useSpans(searchQuery: string) {
-  const getKey = (pageIndex: number, previousPageData: Span[] | null) => {
-    if (previousPageData && previousPageData.length === 0) return null;
-    const offset = pageIndex * PAGE_LIMIT;
-    return ['spans', PAGE_LIMIT, offset] as const;
-  };
-
-  const fetcher = async (_key: readonly unknown[]): Promise<Span[]> => {
-    const limit = _key[1] as number;
-    const offset = _key[2] as number;
-    return fetchSpans({ limit, offset });
-  };
-
   const {
-    data,
-    size,
-    setSize,
+    data: allSpans,
     isLoading,
-    isValidating,
     error,
     mutate,
-  } = useSWRInfinite<Span[]>(getKey, fetcher, {
-    revalidateFirstPage: false,
+  } = useSWR<Span[]>('all-spans', fetchAllSpans, {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
   });
 
-  console.log('data', data);
+  console.log('allSpans', allSpans);
 
   // Transform the data structure to a single accumulated array
-  const allSpans = useMemo(() => {
-    if (!data) return [];
-    const spans: Span[] = [];
-    for (const page of data) {
-      spans.push(...page);
-    }
-    return spans;
-  }, [data]);
+  const spans = useMemo(() => {
+    if (!allSpans) return [];
+    return allSpans;
+  }, [allSpans]);
 
   const filteredRecords = useMemo(() => {
-    return allSpans.filter(r =>
+    return spans.filter(r =>
       r.attributes['http.url'] != 'http://localhost:7432/v1/logs'
       && r.attributes['url.full'] != 'http://localhost:7432/v1/logs'
       && !r.attributes['http.target']?.includes('/_next/static')
     );
-  }, [allSpans, searchQuery]);
+  }, [spans, searchQuery]);
 
   const transformedSpans = useMemo(() => {
     return filteredRecords.map(r => ({
@@ -95,20 +74,10 @@ export function useSpans(searchQuery: string) {
       });
     }
     return Array.from(tracesArr.values());
-  }, [allSpans, searchQuery]);
-
-
-  const hasMore = useMemo(() => {
-    if (!data || data.length === 0) return false;
-    const lastPage = data[data.length - 1];
-    return lastPage && lastPage.length === PAGE_LIMIT;
-  }, [data]);
-
-  const loadMore = () => setSize(size + 1);
+  }, [spans, searchQuery]);
 
   const resetTraces = async () => {
-    await mutate([], { revalidate: false });
-    await setSize(1);
+    await mutate();
   };
 
   return {
@@ -116,10 +85,10 @@ export function useSpans(searchQuery: string) {
     traces,
     isLoading,
     error,
-    hasMore,
-    loadMore,
+    hasMore: false,
+    loadMore: () => {},
     resetTraces,
-    isValidating,
+    isValidating: false,
   } as const;
 }
 

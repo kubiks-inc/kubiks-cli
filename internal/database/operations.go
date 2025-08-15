@@ -274,6 +274,34 @@ func (db *DB) GetTracesPaginated(limit, offset int) ([]*OTELRecord, error) {
 	return records, nil
 }
 
+// GetTracesAll retrieves all traces without pagination across all services
+func (db *DB) GetTracesAll() ([]*OTELRecord, error) {
+	query := `SELECT id, trace_id, servicename, timestamp, data FROM otel_traces 
+		ORDER BY timestamp DESC`
+
+	rows, err := db.conn.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query all otel_traces: %w", err)
+	}
+	defer rows.Close()
+
+	var records []*OTELRecord
+	for rows.Next() {
+		record := &OTELRecord{}
+		err := rows.Scan(&record.ID, &record.TraceID, &record.ServiceName, &record.Timestamp, &record.Data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan otel_traces row: %w", err)
+		}
+		records = append(records, record)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating otel_traces rows: %w", err)
+	}
+
+	return records, nil
+}
+
 // ClearAll removes all data from OTEL tables
 func (db *DB) ClearAll() error {
 	tx, err := db.conn.Begin()

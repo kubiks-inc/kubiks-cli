@@ -60,6 +60,14 @@ func (c *ServerCommand) startServer() error {
 	}
 	defer otelServer.Close()
 
+	// Clear database on each start
+	fmt.Println("🧹 Clearing database on startup...")
+	if err := otelServer.GetDB().ClearAll(); err != nil {
+		fmt.Printf("Warning: failed to clear database on startup: %v\n", err)
+	} else {
+		fmt.Println("✅ Database cleared successfully")
+	}
+
 	// Create MCP server with shared database
 	mcpServer, err := mcp.NewMCPServer(otelServer.GetDB(), c.mcpPort)
 	if err != nil {
@@ -76,6 +84,7 @@ func (c *ServerCommand) startServer() error {
 	otelMux.HandleFunc("/v1/traces", otelServer.OTELTracesHandler)
 	otelMux.HandleFunc("/stats", otelServer.StatsHandler)
 	otelMux.HandleFunc("/api/spans", otelServer.TracesHandler)
+	otelMux.HandleFunc("/api/spans-all", otelServer.TracesAllHandler)
 	otelMux.HandleFunc("/clean", otelServer.CleanHandler)
 
 	// Create OTEL HTTP server
@@ -100,6 +109,7 @@ func (c *ServerCommand) startServer() error {
 	targetURL, _ := url.Parse("http://localhost:" + c.otelPort)
 	proxy := httputil.NewSingleHostReverseProxy(targetURL)
 	uiMux.Handle("/api/", proxy)
+	uiMux.Handle("/api/spans-all", proxy)
 	uiMux.Handle("/clean", proxy)
 	uiMux.Handle("/stats", proxy)
 

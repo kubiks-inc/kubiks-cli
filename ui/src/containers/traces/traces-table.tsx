@@ -9,18 +9,14 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { DatabaseIcon, XCircle, Loader2, Trash2 } from 'lucide-react';
+import { DatabaseIcon, XCircle, Trash2 } from 'lucide-react';
 import { Trace, TraceStatus } from '@/types/trace';
 import { Skeleton } from '@/components/ui/skeleton';
-import InfiniteScroll from '@/components/infinite-scroll';
 import CopyButton from '@/components/copy-button';
 
 interface TracesTableProps {
   traces: Trace[];
   onTraceClick?: (trace: Trace) => void;
-  onLoadMore?: () => void;
-  hasMore?: boolean;
-  isLoadingMore?: boolean;
   isLoading?: boolean;
   error?: Error | null;
   className?: string;
@@ -54,9 +50,6 @@ const formatTimestamp = (timestamp: string) => {
 export function TracesTable({
   traces,
   onTraceClick,
-  onLoadMore,
-  hasMore = false,
-  isLoadingMore = false,
   isLoading = false,
   error = null,
   className,
@@ -157,74 +150,57 @@ export function TracesTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          <InfiniteScroll
-            hasMore={hasMore}
-            isLoading={isLoadingMore}
-            next={onLoadMore || (() => { })}
-            threshold={0.1}
-          >
-            {traces.map(trace => (
-              <TableRow
-                key={trace.traceId}
-                className={cn(
-                  'cursor-pointer transition-colors',
-                  onTraceClick && 'hover:bg-muted/50'
+          {traces.map(trace => (
+            <TableRow
+              key={trace.traceId}
+              className={cn(
+                'cursor-pointer transition-colors',
+                onTraceClick && 'hover:bg-muted/50'
+              )}
+              onClick={() => onTraceClick?.(trace)}
+            >
+              <TableCell>
+                <span className="text-muted-foreground">
+                  {formatTimestamp(trace.timestamp)}
+                </span>
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <code className="text-xs bg-muted px-2 py-1 rounded">
+                    {trace.traceId.substring(0, 10)}...
+                  </code>
+                  <CopyButton
+                    text={trace.traceId}
+                    buttonClassName="h-5 w-5"
+                    iconClassName="h-3 w-3"
+                  />
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">{trace.name}</span>
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <span>{trace.service}</span>
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-1">
+                  <span>{formatDuration(trace.durationMs)}</span>
+                </div>
+              </TableCell>
+              <TableCell>
+                {trace.statusCode && (
+                  <code className="text-xs bg-muted px-2 py-1 rounded font-mono">
+                    {trace.statusCode}
+                  </code>
                 )}
-                onClick={() => onTraceClick?.(trace)}
-              >
-                <TableCell>
-                  <span className="text-muted-foreground">
-                    {formatTimestamp(trace.timestamp)}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <code className="text-xs bg-muted px-2 py-1 rounded">
-                      {trace.traceId.substring(0, 10)}...
-                    </code>
-                    <CopyButton
-                      text={trace.traceId}
-                      buttonClassName="h-5 w-5"
-                      iconClassName="h-3 w-3"
-                    />
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{trace.name}</span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <span>{trace.service}</span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    <span>{formatDuration(trace.durationMs)}</span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  {trace.statusCode && (
-                    <code className="text-xs bg-muted px-2 py-1 rounded font-mono">
-                      {trace.statusCode}
-                    </code>
-                  )}
-                </TableCell>
-                {/* <TableCell>{getStatusText(trace.status)}</TableCell> */}
-              </TableRow>
-            ))}
-            {hasMore && (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-4">
-                  <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span className="text-sm">Loading more traces...</span>
-                  </div>
-                </TableCell>
-              </TableRow>
-            )}
-          </InfiniteScroll>
+              </TableCell>
+              {/* <TableCell>{getStatusText(trace.status)}</TableCell> */}
+            </TableRow>
+          ))}
         </TableBody>
       </Table>
 
