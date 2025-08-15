@@ -18,8 +18,6 @@ export function useSpans(searchQuery: string) {
     refreshInterval: 1000, // Reload every second
   });
 
-  console.log('allSpans', allSpans);
-
   // Transform the data structure to a single accumulated array
   const spans = useMemo(() => {
     if (!allSpans) return [];
@@ -61,56 +59,17 @@ export function useSpans(searchQuery: string) {
 
       const rootSpan = spans.find(r => r.timestamp.getTime() === minStartTime);
 
-      console.log('rootSpan', rootSpan);
+      const statusCodes = spans.map(r => r.attributes['http.status_code']).filter(r => r);
 
-      // Filter out requests with undefined/missing attributes and create valid request strings
-      const validRequests = spans
-        .map(r => {
-          const method = r.attributes['http.method'];
-          const url = r.attributes['http.url'];
-          if (method && url) {
-            // Truncate URL to 80 characters and add ... if longer
-            const truncatedUrl = url.length > 50 ? url.substring(0, 50) + '...' : url;
-            return method + ' ' + truncatedUrl;
-          }
-          return null;
-        })
-        .filter(request => request !== null);
-
-      // Get unique status codes and create status text
-      const statusCodes = spans
-        .map(r => {
-          const code = r.attributes['http.status_code'];
-          const text = r.attributes['http.status_text'];
-          if (code) {
-            return text ? `${code} ${text}` : code;
-          }
-          return null;
-        })
-        .filter(status => status !== null);
-
-      // Create status text: first status + "and n more" if multiple different statuses
-      let statusText = statusCodes[0] || '';
-      if (statusCodes.length > 1) {
-        const uniqueStatuses = [...new Set(statusCodes)];
-        if (uniqueStatuses.length > 1) {
-          statusText += ` and ${uniqueStatuses.length - 1} more`;
-        }
-      }
-
-      // Create trace name: first valid request + "and n more" if multiple valid requests
-      let traceName = validRequests[0] || 'Unknown request';
-      if (validRequests.length > 1) {
-        traceName += ` and ${validRequests.length - 1} more`;
-      }
+      const statusText = statusCodes.join(', ');
 
       tracesArr.set(traceId, {
         traceId: traceId,
         timestamp: timestamp,
         durationMs,
-        statusCode: statusText,
-        name: traceName,
+        name: rootSpan?.name ?? '',
         service: rootSpan?.resourceAttributes['service.name'] ?? '',
+        statusCode: statusText,
       });
     }
     // Sort traces by timestamp (newest first) and return as array

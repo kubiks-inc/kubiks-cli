@@ -22,18 +22,51 @@ interface TracesTableProps {
   className?: string;
 }
 
-const getStatusText = (status: TraceStatus) => {
-  switch (status) {
-    case TraceStatus.SUCCESS:
-      return <span className="text-emerald-600 font-medium">Success</span>;
-    case TraceStatus.ERROR:
-      return <span className="text-red-600 font-medium">Error</span>;
-    case TraceStatus.WARNING:
-      return <span className="text-amber-600 font-medium">Warning</span>;
-    default:
-      return <span className="text-muted-foreground font-medium">Unknown</span>;
+const getStatusText = (status: string) => {
+  if (!status) {
+    return <span className="text-muted-foreground font-medium">Unknown</span>;
   }
+  const statusCodes = status.split(', ');
+  return statusCodes.map((code, idx) => {
+    const num = Number(code);
+    if (!isNaN(num)) {
+      if (num >= 200 && num < 300) {
+        return (
+          <span key={idx} className="text-emerald-600 font-medium">
+            {num} Success
+          </span>
+        );
+      }
+      if (num >= 300 && num < 400) {
+        return (
+          <span key={idx} className="text-blue-600 font-medium">
+            {num} Redirect
+          </span>
+        );
+      }
+      if (num >= 400 && num < 500) {
+        return (
+          <span key={idx} className="text-amber-600 font-medium">
+            {num} Warning
+          </span>
+        );
+      }
+      if (num >= 500 && num < 600) {
+        return (
+          <span key={idx} className="text-red-600 font-medium">
+            {num} Error
+          </span>
+        );
+      }
+    }
+    return (
+      <span key={idx} className="text-muted-foreground font-medium">
+        {code} Unknown
+      </span>
+    );
+  });
 };
+
 
 const formatDuration = (durationMs: number) => {
   if (durationMs < 1000) {
@@ -180,7 +213,7 @@ export function TracesTable({
               <TableCell>
                 {trace.statusCode && (
                   <code className="text-xs bg-muted px-2 py-1 rounded font-mono">
-                    {trace.statusCode}
+                    {getStatusText(trace.statusCode)}
                   </code>
                 )}
               </TableCell>

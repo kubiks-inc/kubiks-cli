@@ -1,6 +1,6 @@
 import { Span } from "@/types/span";
 
-const API_BASE = ''
+const API_BASE = 'http://localhost:7432'
 
 export async function fetchSpans(params?: { limit?: number; offset?: number }): Promise<Span[]> {
   const limit = params?.limit ?? 1000

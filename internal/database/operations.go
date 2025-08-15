@@ -145,6 +145,7 @@ func (db *DB) InsertTracesFromPayload(payload []byte) (int, error) {
 				out := map[string]interface{}{
 					"traceId":            sp["traceId"],
 					"spanId":             sp["spanId"],
+					"parentSpanId":       sp["parentSpanId"],
 					"name":               sp["name"],
 					"kind":               sp["kind"],
 					"startTimeUnixNano":  sp["startTimeUnixNano"],

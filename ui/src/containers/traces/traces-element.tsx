@@ -23,9 +23,6 @@ export const TracesContent = ({ timerange }: TracesContentProps) => {
     resetTraces,
   } = useSpans('');
 
-  console.log('allTraces', traces);
-  console.log('spansMap', spansMap);
-
   const handleTraceClick = (trace: Trace) => {
     setSelectedTrace(trace);
     setIsDrawerOpen(true);

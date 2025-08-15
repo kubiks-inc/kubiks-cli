@@ -155,58 +155,102 @@ const SpanListItem = ({
   const spanName = span.attributes['http.url'] ? span.attributes['http.method'] + ' ' + (span.attributes['http.target'] ?? span.attributes['http.url']) : span.name;
 
   return (
-    <div>
+    <div className="relative">
+      {/* Tree line connector */}
+      {level > 0 && (
+        <div
+          className="absolute left-0 top-0 bottom-0 w-0.5 bg-border/60"
+          style={{ left: `${(level - 1) * 20 + 8}px` }}
+        />
+      )}
+
       <div
-        className={`flex items-center gap-2 p-2 hover:bg-muted/50 cursor-pointer rounded h-12 ${isSelected ? 'bg-muted' : ''
+        className={`flex items-center gap-2 p-2 hover:bg-muted/50 cursor-pointer rounded h-12 transition-all duration-150 ${isSelected ? 'bg-muted border border-primary/20 shadow-sm' : ''
           }`}
         onClick={() => onSelectSpan(span.spanId)}
-        style={{ paddingLeft: `${level * 16 + 8}px` }}
+        style={{ paddingLeft: `${level * 20 + 12}px` }}
       >
+        {/* Expand/collapse button */}
         {hasChildren && (
           <button
             onClick={e => {
               e.stopPropagation();
               onToggleExpanded(span.spanId);
             }}
-            className="p-1 hover:bg-muted rounded"
+            className="p-1 hover:bg-muted rounded transition-colors flex-shrink-0 hover:scale-110"
           >
             {isExpanded ? (
-              <ChevronDown className="h-3 w-3" />
+              <ChevronDown className="h-3 w-3 text-muted-foreground" />
             ) : (
-              <ChevronRight className="h-3 w-3" />
+              <ChevronRight className="h-3 w-3 text-muted-foreground" />
             )}
           </button>
         )}
-        {!hasChildren && <div className="w-5" />}
 
+        {/* Spacer for items without children */}
+        {!hasChildren && <div className="w-5 flex-shrink-0" />}
+
+        {/* Status indicator */}
         <div
-          className={`w-3 h-3 rounded-full ${getSpanColor(span)}`}
+          className={`w-3 h-3 rounded-full ${getSpanColor(span)} flex-shrink-0 shadow-sm`}
         />
-        <span className="text-xs text-muted-foreground min-w-[20px]">1</span>
+
+        {/* Span count badge */}
+        <div className="text-xs text-muted-foreground min-w-[20px] text-center flex-shrink-0 bg-muted px-1 py-0.5 rounded">
+          {hasChildren ? children.length : '1'}
+        </div>
+
+        {/* Span content */}
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium truncate">{spanName}</div>
+          <div className="text-sm font-medium truncate text-foreground">
+            {spanName}
+          </div>
           <div className="text-xs text-muted-foreground truncate">
-            {span.resourceAttributes['service.name']}
+            {span.resourceAttributes['service.name'] || 'Unknown Service'}
           </div>
         </div>
-        <div className="text-xs text-muted-foreground">
+
+        {/* Duration */}
+        <div className="text-xs text-muted-foreground flex-shrink-0 bg-muted/50 px-1.5 py-0.5 rounded">
           {formatDuration(span.durationMs)}
         </div>
       </div>
 
-      {isExpanded &&
-        children.map(child => (
-          <SpanListItem
-            key={child.span.spanId}
-            node={child}
-            selectedSpanId={selectedSpanId}
-            onSelectSpan={onSelectSpan}
-            expandedNodes={expandedNodes}
-            onToggleExpanded={onToggleExpanded}
-            startTime={startTime}
-            maxDuration={maxDuration}
-          />
-        ))}
+      {/* Render children if expanded */}
+      {isExpanded && hasChildren && (
+        <div className="relative">
+          {children.map((child, index) => (
+            <div key={child.span.spanId} className="relative">
+              {/* Horizontal line from parent to child */}
+              <div
+                className="absolute left-0 top-0 w-0.5 bg-border/60"
+                style={{
+                  left: `${level * 20 + 8}px`,
+                  height: '12px'
+                }}
+              />
+              {/* Horizontal line connecting to child */}
+              <div
+                className="absolute top-0 w-0.5 bg-border/60"
+                style={{
+                  left: `${level * 20 + 8}px`,
+                  width: `${20}px`,
+                  height: '0.5px'
+                }}
+              />
+              <SpanListItem
+                node={child}
+                selectedSpanId={selectedSpanId}
+                onSelectSpan={onSelectSpan}
+                expandedNodes={expandedNodes}
+                onToggleExpanded={onToggleExpanded}
+                startTime={startTime}
+                maxDuration={maxDuration}
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
@@ -257,17 +301,26 @@ const WaterfallChart = ({
           return (
             <div
               key={span.spanId}
-              className="relative h-12 flex items-center cursor-pointer group w-full"
+              className="relative h-12 flex items-center cursor-pointer group w-full hover:bg-muted/30 transition-colors"
               onClick={() => onSelectSpan(span.spanId)}
-              style={{ paddingLeft: `${level * 16 + 8}px` }}
+              style={{ paddingLeft: `${level * 20 + 12}px` }}
             >
               {/* Left spacer to match the left panel layout */}
               <div className="w-5 flex-shrink-0" />
 
               <div className="absolute inset-0 flex items-center">
+                {/* Tree line connector for hierarchy */}
+                {level > 0 && (
+                  <div
+                    className="absolute left-0 top-0 bottom-0 w-0.5 bg-border/60"
+                    style={{ left: `${(level - 1) * 20 + 8}px` }}
+                  />
+                )}
+
+                {/* Span bar */}
                 <div
-                  className={`h-3 rounded ${getSpanColor(span)} ${isSelected ? 'ring-2 ring-primary' : ''
-                    } group-hover:opacity-80 transition-opacity`}
+                  className={`h-3 rounded transition-all duration-200 ${getSpanColor(span)} ${isSelected ? 'ring-2 ring-primary ring-offset-1' : ''
+                    } group-hover:opacity-80 group-hover:scale-y-110`}
                   style={{
                     left: `${startPercent}%`,
                     width: `${Math.max(durationPercent, 0.5)}%`,
@@ -275,7 +328,14 @@ const WaterfallChart = ({
                     position: 'absolute',
                   }}
                 />
+
+                {/* Span name tooltip on hover */}
+                <div className="absolute left-0 top-full mt-1 bg-popover text-popover-foreground text-xs px-2 py-1 rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-20">
+                  {span.name}
+                </div>
               </div>
+
+              {/* Duration label */}
               <div className="absolute right-2 text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
                 {formatDuration(span.durationMs)}
               </div>
@@ -641,7 +701,7 @@ export const TraceDrawer = ({
 
           <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
             {/* Combined Spans and Timeline Panel */}
-            <ResizablePanel defaultSize={70} minSize={40}>
+            <ResizablePanel defaultSize={75} minSize={50}>
               <div className="flex flex-col min-w-0 min-h-0 h-full">
                 <div className="p-4 border-b flex-shrink-0">
                   <h3 className="font-medium text-sm">Spans & Timeline</h3>
@@ -650,8 +710,8 @@ export const TraceDrawer = ({
                 {/* Sticky Timeline Header */}
                 <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
                   <div className="flex">
-                    <div className="w-96 border-r p-2">
-                      <div className="text-xs text-muted-foreground font-medium">Spans</div>
+                    <div className="w-[420px] border-r p-2">
+                      <div className="text-xs text-muted-foreground font-medium">Spans Tree</div>
                     </div>
                     <div className="flex-1 p-2">
                       <div className="flex text-xs text-muted-foreground">
@@ -675,7 +735,7 @@ export const TraceDrawer = ({
                 <ScrollArea className="flex-1 min-h-0">
                   <div className="flex">
                     {/* Left side - Span List */}
-                    <div className="w-96 border-r">
+                    <div className="w-[420px] border-r">
                       <div className="p-4">
                         {spanTree.map(node => (
                           <SpanListItem
