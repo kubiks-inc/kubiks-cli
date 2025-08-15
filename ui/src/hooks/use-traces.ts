@@ -4,22 +4,9 @@ import useSWRInfinite from 'swr/infinite';
 import { useMemo } from 'react';
 import { fetchTraces, type TraceRecord } from '@/api/traces';
 import { Trace, TraceStatus } from '@/types/trace';
+import { summarizeTrace } from '@/lib/otel';
 
 const PAGE_LIMIT = 50;
-
-function mapRecordToTrace(record: TraceRecord): Trace {
-  return {
-    traceId: record.trace_id ?? String(record.id),
-    timestamp: record.timestamp,
-    durationMs: 0,
-    traceStatus: 'unknown',
-    statusCode: '',
-    name: (record as any).name ?? '—',
-    statusText: 'Unknown',
-    service: record.servicename ?? 'unknown',
-    status: TraceStatus.SUCCESS,
-  };
-}
 
 export function useTraces(searchQuery: string) {
   const getKey = (pageIndex: number, previousPageData: TraceRecord[] | null) => {
@@ -48,6 +35,14 @@ export function useTraces(searchQuery: string) {
 
   const flatRecords = useMemo(() => (data ? ([] as TraceRecord[]).concat(...data) : []), [data]);
 
+  const recordsByTraceId = useMemo(() => {
+    const map: Record<string, TraceRecord> = {};
+    for (const r of flatRecords) {
+      map[r.trace_id] = r;
+    }
+    return map;
+  }, [flatRecords]);
+
   const filteredRecords = useMemo(() => {
     const records = flatRecords;
     if (!searchQuery) return records;
@@ -58,7 +53,25 @@ export function useTraces(searchQuery: string) {
     );
   }, [flatRecords, searchQuery]);
 
-  const traces: Trace[] = useMemo(() => filteredRecords.map(mapRecordToTrace), [filteredRecords]);
+  const mappedTraces: Trace[] = useMemo(() => {
+    return filteredRecords.map(r => {
+      const summary = summarizeTrace(r);
+      const statusNum = Number(summary.statusCode);
+      let status: TraceStatus = TraceStatus.SUCCESS;
+      if (Number.isFinite(statusNum) && statusNum >= 400) status = TraceStatus.ERROR;
+      return {
+        traceId: r.trace_id,
+        timestamp: r.timestamp,
+        durationMs: summary.durationMs,
+        traceStatus: summary.statusText || 'unknown',
+        statusCode: summary.statusCode || '',
+        name: summary.name || '—',
+        statusText: summary.statusText || 'Unknown',
+        service: r.servicename || 'unknown',
+        status,
+      } as Trace;
+    });
+  }, [filteredRecords]);
 
   const hasMore = useMemo(() => {
     if (!data || data.length === 0) return false;
@@ -74,7 +87,8 @@ export function useTraces(searchQuery: string) {
   };
 
   return {
-    data: traces,
+    data: mappedTraces,
+    recordsByTraceId,
     isLoading,
     error,
     hasMore,

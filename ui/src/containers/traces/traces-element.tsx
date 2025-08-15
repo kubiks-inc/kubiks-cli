@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { TracesTable } from './traces-table';
 import { TraceDrawer } from './trace-drawer';
 import { useTraces } from '@/hooks/use-traces';
+import { extractSpansFromRecord } from '@/lib/otel';
 import { Trace } from '@/types/trace';
 import { TraceFilters } from './trace-filters-ui';
 
@@ -19,6 +20,7 @@ export const TracesContent = ({ timerange }: TracesContentProps) => {
 
   const {
     data: allTraces,
+    recordsByTraceId,
     isLoading,
     error,
     hasMore,
@@ -49,7 +51,7 @@ export const TracesContent = ({ timerange }: TracesContentProps) => {
             onSearchChange={handleSearchChange}
           />
           <TracesTable
-            traces={allTraces}
+            traces={allTraces as any}
             onTraceClick={handleTraceClick}
             onLoadMore={loadMore}
             hasMore={hasMore}
@@ -62,6 +64,12 @@ export const TracesContent = ({ timerange }: TracesContentProps) => {
               trace={selectedTrace}
               isOpen={isDrawerOpen}
               onClose={handleDrawerClose}
+              demoSpans={
+                recordsByTraceId[selectedTrace.traceId]
+                  ? extractSpansFromRecord(recordsByTraceId[selectedTrace.traceId])
+                    .filter(s => s.traceId === selectedTrace.traceId)
+                  : []
+              }
             />
           )}
         </div>

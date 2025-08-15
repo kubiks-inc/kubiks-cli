@@ -32,8 +32,7 @@ import {
 } from 'lucide-react';
 import { Trace, TraceStatus } from '@/types/trace';
 import { Span } from '@/types/span';
-import { useSpans } from '@/hooks/use-spans';
-import { useTraceLogs } from '@/hooks/use-trace-logs';
+// Spans and logs are provided via demoSpans; no API fetching required here.
 
 interface TraceDrawerProps {
   trace: Trace;
@@ -562,9 +561,7 @@ export const TraceDrawer = ({
   onClose,
   demoSpans,
 }: TraceDrawerProps) => {
-  const { data: apiSpans = [] } = useSpans(trace.traceId);
-  const { data: logs, isLoading: isLogsLoading } = useTraceLogs(trace.traceId);
-  const spans: Span[] = (demoSpans ?? apiSpans) as Span[];
+  const spans: Span[] = (demoSpans ?? []) as Span[];
   const [selectedSpanId, setSelectedSpanId] = useState<string>('');
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [modalState, setModalState] = useState<{
