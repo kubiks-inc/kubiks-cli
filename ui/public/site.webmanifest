@@ -1,0 +1,26 @@
+{
+  "name": "Kubiks CLI",
+  "short_name": "Kubiks",
+  "description": "Kubiks CLI - Next.js instrumentation and debugging tool",
+  "icons": [
+    {
+      "src": "/favicon-16x16.svg",
+      "sizes": "16x16",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/favicon-32x32.svg",
+      "sizes": "32x32",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/apple-touch-icon.svg",
+      "sizes": "180x180",
+      "type": "image/svg+xml"
+    }
+  ],
+  "theme_color": "#3B82F6",
+  "background_color": "#1E40AF",
+  "display": "standalone",
+  "start_url": "/"
+}

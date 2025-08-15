@@ -131,8 +131,6 @@ func (s *Server) OTELTracesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	fmt.Println("OTELTracesHandler")
-
 	// Insert one record per span, carrying resource attributes
 	count, err := s.db.InsertTracesFromPayload(body)
 	if err != nil {
