@@ -61,8 +61,31 @@ export const TracesContent = ({ timerange }: TracesContentProps) => {
               onClose={handleDrawerClose}
               demoSpans={
                 recordsByTraceId[selectedTrace.traceId]
-                  ? extractSpansFromRecord(recordsByTraceId[selectedTrace.traceId])
-                    .filter(s => s.traceId === selectedTrace.traceId)
+                  ? (() => {
+                    const record = recordsByTraceId[selectedTrace.traceId];
+                    console.log('Raw trace record:', record);
+                    console.log('Raw trace data:', record.data);
+                    const allSpans = extractSpansFromRecord(record);
+
+                    // Filter out spans that are calls to /logs endpoint
+                    const filteredSpans = allSpans.filter(span => {
+                      const url = span.spanAttributes['http.url'] || span.spanAttributes['url.full'];
+                      return !url || !url.includes('/logs');
+                    });
+
+                    console.log('All spans extracted:', allSpans.length);
+                    console.log('Filtered spans (excluding /logs):', filteredSpans.length);
+                    console.log('Extracted spans for trace:', selectedTrace.traceId, filteredSpans);
+                    console.log('Span details:', filteredSpans.map(s => ({
+                      name: s.spanName,
+                      service: s.serviceName,
+                      kind: s.spanKind,
+                      duration: s.durationMs,
+                      statusCode: s.statusCode,
+                      url: s.spanAttributes['http.url'] || s.spanAttributes['url.full']
+                    })));
+                    return filteredSpans;
+                  })()
                   : []
               }
             />

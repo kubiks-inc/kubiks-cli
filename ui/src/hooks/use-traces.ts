@@ -65,8 +65,35 @@ export function useTraces(searchQuery: string) {
   const recordsByTraceId = useMemo(() => {
     const map: Record<string, TraceRecord> = {};
     for (const r of flatRecords) {
-      map[r.trace_id] = r;
+      if (map[r.trace_id]) {
+        // Merge spans from multiple records with the same trace_id
+        const existing = map[r.trace_id];
+        if (existing.data && r.data &&
+          typeof existing.data === 'object' && typeof r.data === 'object' &&
+          'resourceSpans' in existing.data && 'resourceSpans' in r.data &&
+          Array.isArray(existing.data.resourceSpans) && Array.isArray(r.data.resourceSpans)) {
+          // Merge resourceSpans arrays
+          const existingCount = (existing.data.resourceSpans as any[]).length;
+          const newCount = (r.data.resourceSpans as any[]).length;
+          existing.data.resourceSpans = [
+            ...(existing.data.resourceSpans as any[]),
+            ...(r.data.resourceSpans as any[])
+          ];
+          console.log(`Merged trace ${r.trace_id}: ${existingCount} + ${newCount} = ${(existing.data.resourceSpans as any[]).length} resourceSpans`);
+        }
+      } else {
+        map[r.trace_id] = r;
+      }
     }
+
+    // Log final counts
+    Object.entries(map).forEach(([traceId, record]) => {
+      if (record.data && typeof record.data === 'object' && 'resourceSpans' in record.data) {
+        const resourceSpans = record.data.resourceSpans as any[];
+        console.log(`Trace ${traceId} has ${resourceSpans?.length || 0} resourceSpans`);
+      }
+    });
+
     return map;
   }, [flatRecords]);
 

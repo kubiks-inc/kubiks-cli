@@ -39,13 +39,23 @@ export function extractSpansFromRecord(record: TraceRecord): Span[] {
   const result: Span[] = []
   if (!data || !Array.isArray(data.resourceSpans)) return result
 
+  console.log('Processing trace record:', record.trace_id, 'with data:', data);
+  console.log('Number of resourceSpans:', data.resourceSpans.length);
+
   for (const resourceSpan of data.resourceSpans as any[]) {
     const resourceAttrs = attributesArrayToMap(resourceSpan?.resource?.attributes)
     const serviceName = resourceAttrs['service.name'] || record.servicename || 'unknown'
     const scopeSpans: any[] = resourceSpan?.scopeSpans || []
+    console.log('Processing resourceSpan with', scopeSpans.length, 'scopeSpans');
+    console.log('Resource span service:', serviceName);
+
     for (const scope of scopeSpans) {
       const spans: any[] = scope?.spans || []
+      console.log('Processing scope with', spans.length, 'spans');
+      console.log('Scope name:', scope?.scope?.name);
+
       for (const s of spans) {
+        console.log('Processing span:', s?.name, 'with URL:', s?.attributes?.find((a: any) => a.key === 'http.url')?.value?.stringValue);
         const spanAttrs = attributesArrayToMap(s?.attributes)
         const startMs = nsecStringToMs(s?.startTimeUnixNano)
         const endMs = nsecStringToMs(s?.endTimeUnixNano)
@@ -55,7 +65,7 @@ export function extractSpansFromRecord(record: TraceRecord): Span[] {
         const statusMessage = spanAttrs['http.status_text'] || (s?.status?.message ?? '')
 
         const span: Span = {
-          traceId: s?.traceId ?? record.trace_id,
+          traceId: record.trace_id,
           spanId: s?.spanId ?? '',
           parentSpanId: s?.parentSpanId ?? '',
           timestamp: new Date(startMs).toISOString(),
@@ -71,15 +81,18 @@ export function extractSpansFromRecord(record: TraceRecord): Span[] {
           events: Array.isArray(s?.events) ? s.events : [],
           links: Array.isArray(s?.links) ? s.links : [],
         }
+        console.log('Created span:', span.spanName, 'with traceId:', span.traceId, 'URL:', spanAttrs['http.url']);
         result.push(span)
       }
     }
   }
+
+  console.log('Total spans extracted:', result.length);
   return result
 }
 
 export function summarizeTrace(record: TraceRecord) {
-  const spans = extractSpansFromRecord(record).filter(s => s.traceId === record.trace_id)
+  const spans = extractSpansFromRecord(record)
   if (spans.length === 0) return { name: '—', durationMs: 0, statusCode: '', statusText: 'Unknown' }
   const minStart = Math.min(...spans.map(s => new Date(s.timestamp).getTime()))
   const maxEnd = Math.max(...spans.map(s => new Date(s.timestamp).getTime() + s.durationMs))
