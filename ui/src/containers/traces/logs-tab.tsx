@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { CopyButton } from '@/components/copy-button';
 import useSWR from 'swr';
 import { fetchAllLogs, LogRecord } from '@/api/traces';
+import { extractStackTrace } from '@/lib/stacktrace';
 
 function nanoToDateString(nano?: string) {
   if (!nano) return '';
@@ -112,9 +113,45 @@ export function LogsTable() {
                     {isExpanded && (
                       <TableRow key={`expand-${idx}`}>
                         <TableCell colSpan={4}>
-                          <div className="text-sm text-foreground/90 break-words whitespace-pre-wrap">
-                            {fullMessage}
-                          </div>
+                          {(() => {
+                            const parsed = extractStackTrace(fullMessage);
+                            if (!parsed) {
+                              return (
+                                <div className="text-sm text-foreground/90 break-words whitespace-pre-wrap">
+                                  {fullMessage}
+                                </div>
+                              );
+                            }
+                            return (
+                              <div className="space-y-2">
+                                {parsed.header && (
+                                  <div className="text-sm font-medium text-red-600 dark:text-red-400">
+                                    {parsed.header}
+                                  </div>
+                                )}
+                                <div className="rounded-md border bg-muted/40">
+                                  <div className="p-3 overflow-auto">
+                                    <ol className="text-xs font-mono space-y-1">
+                                      {parsed.frames.map((f, i) => (
+                                        <li key={i} className="leading-relaxed">
+                                          <span className="text-muted-foreground">at </span>
+                                          {f.functionName && (
+                                            <span className="text-foreground">{f.functionName} </span>
+                                          )}
+                                          <span className="text-muted-foreground">
+                                            ({f.file}
+                                            {typeof f.line === 'number' ? `:${f.line}` : ''}
+                                            {typeof f.column === 'number' ? `:${f.column}` : ''}
+                                            )
+                                          </span>
+                                        </li>
+                                      ))}
+                                    </ol>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </TableCell>
                       </TableRow>
                     )}
