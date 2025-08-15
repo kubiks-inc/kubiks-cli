@@ -86,7 +86,7 @@ export function useSpans(searchQuery: string) {
     isLoading,
     error,
     hasMore: false,
-    loadMore: () => {},
+    loadMore: () => { },
     resetTraces,
     isValidating: false,
   } as const;
