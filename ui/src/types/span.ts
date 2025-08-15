@@ -8,4 +8,8 @@ export type Span = {
   startTimeUnixNano: number
   attributes: Record<string, string>
   resourceAttributes: Record<string, string>
+
+  // computed
+  durationMs: number
+  timestamp: Date
 }

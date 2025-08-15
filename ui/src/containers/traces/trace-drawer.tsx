@@ -198,7 +198,7 @@ const SpanListItem = ({
           </div>
         </div>
         <div className="text-xs text-muted-foreground">
-          {formatDuration((span.endTimeUnixNano - span.startTimeUnixNano) / 1000000)}
+          {formatDuration(span.durationMs)}
         </div>
       </div>
 
@@ -256,10 +256,10 @@ const WaterfallChart = ({
       {/* Spans */}
       <div className="space-y-0 w-full">
         {spanRows.map(({ span, level }) => {
-          const spanStartTime = new Date(span.startTimeUnixNano / 1000000).getTime();
+          const spanStartTime = span.timestamp.getTime();
           const relativeStart = spanStartTime - startTime;
           const startPercent = (relativeStart / maxDuration) * 100;
-          const durationPercent = ((span.endTimeUnixNano - span.startTimeUnixNano) / 1000000 / maxDuration) * 100;
+          const durationPercent = (span.durationMs / maxDuration) * 100;
           const isSelected = selectedSpanId === span.spanId;
 
           return (
@@ -285,7 +285,7 @@ const WaterfallChart = ({
                 />
               </div>
               <div className="absolute right-2 text-xs text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-                {formatDuration((span.endTimeUnixNano - span.startTimeUnixNano) / 1000000)}
+                {formatDuration(span.durationMs)}
               </div>
             </div>
           );
@@ -422,7 +422,7 @@ const SpanDetails = ({
         </div>
         <div>
           <div className="text-xs font-medium text-muted-foreground mb-1">Duration</div>
-          <div className="text-sm">{formatDuration((span.endTimeUnixNano - span.startTimeUnixNano) / 1000000)}</div>
+          <div className="text-sm">{formatDuration(span.durationMs)}</div>
         </div>
         <div>
           <div className="text-xs font-medium text-muted-foreground mb-1">Kind</div>
@@ -575,19 +575,23 @@ export const TraceDrawer = ({
 
   const startTime = useMemo(() => {
     if (spans.length === 0) return 0;
-    return Math.min(...spans.map(s => new Date(s.startTimeUnixNano / 1000000).getTime()));
+    return Math.min(...spans.map(s => s.timestamp.getTime()));
   }, [spans]);
 
   const maxDuration = useMemo(() => {
     if (spans.length === 0) return 1;
-    // Calculate the actual end time of the trace
+    // Use the trace duration or calculate from spans if needed
+    if (trace.durationMs > 0) {
+      return trace.durationMs;
+    }
+    // Fallback: calculate from span timestamps
     const endTime = Math.max(
-      ...spans.map(s => new Date(s.endTimeUnixNano / 1000000).getTime())
+      ...spans.map(s => s.timestamp.getTime())
     );
     const totalDuration = endTime - startTime;
     // Ensure we have a reasonable minimum duration for visualization
     return Math.max(totalDuration, 1000); // At least 1ms
-  }, [spans, startTime]);
+  }, [spans, startTime, trace.durationMs]);
 
   const selectedSpan = useMemo(
     () => spans.find(s => s.spanId === selectedSpanId) || null,
@@ -734,7 +738,7 @@ export const TraceDrawer = ({
           {/* Footer */}
           <div className="border-t p-4 flex-shrink-0">
             <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <span>Duration {formatDuration(maxDuration / 1000000)}</span>
+              <span>Duration {formatDuration(maxDuration)}</span>
             </div>
           </div>
         </div>

@@ -54,8 +54,16 @@ export function useSpans(searchQuery: string) {
     );
   }, [allSpans, searchQuery]);
 
+  const transformedSpans = useMemo(() => {
+    return filteredRecords.map(r => ({
+      ...r,
+      durationMs: (r.endTimeUnixNano - r.startTimeUnixNano) / 1000000,
+      timestamp: new Date(r.startTimeUnixNano / 1000000),
+    }));
+  }, [filteredRecords]);
+
   const spansMap = new Map<string, Span[]>();
-  for (const span of filteredRecords) {
+  for (const span of transformedSpans) {
     if (!spansMap.has(span.traceId)) {
       spansMap.set(span.traceId, []);
     }
@@ -65,29 +73,26 @@ export function useSpans(searchQuery: string) {
   const traces = useMemo(() => {
     const tracesArr = new Map<string, Trace>();
 
-    for (const span of filteredRecords) {
-      const spans = spansMap.get(span.traceId);
-      const minStartTime = Math.min(...spans?.map(r => r.startTimeUnixNano) ?? []) / 1000000;
-      const maxEndTime = Math.max(...spans?.map(r => r.endTimeUnixNano) ?? []) / 1000000;
+    for (const [traceId, spans] of spansMap) {
+      const minStartTime = Math.min(...spans.map(r => r.timestamp.getTime()));
+      const maxEndTime = Math.max(...spans.map(r => r.timestamp.getTime() + r.durationMs));
       const timestamp = new Date(minStartTime).toISOString();
       const durationMs = (maxEndTime - minStartTime);
 
-      const rootSpan = spans?.find(r => r.startTimeUnixNano / 1000000 === minStartTime);
+      const rootSpan = spans.find(r => r.timestamp.getTime() === minStartTime);
 
       console.log('rootSpan', rootSpan);
 
       const statusText = (rootSpan?.attributes['http.response.status_code'] ?? '') + ' ' + (rootSpan?.attributes['http.response.status_text'] ?? '');
 
-      if (!tracesArr.has(span.traceId)) {
-        tracesArr.set(span.traceId, {
-          traceId: span.traceId,
-          timestamp: timestamp,
-          durationMs,
-          statusCode: statusText,
-          name: rootSpan?.name ?? '',
-          service: rootSpan?.resourceAttributes['service.name'] ?? '',
-        });
-      }
+      tracesArr.set(traceId, {
+        traceId: traceId,
+        timestamp: timestamp,
+        durationMs,
+        statusCode: statusText,
+        name: rootSpan?.name ?? '',
+        service: rootSpan?.resourceAttributes['service.name'] ?? '',
+      });
     }
     return Array.from(tracesArr.values());
   }, [allSpans, searchQuery]);
