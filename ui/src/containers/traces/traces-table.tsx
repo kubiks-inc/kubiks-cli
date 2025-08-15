@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { DatabaseIcon, XCircle, Trash2 } from 'lucide-react';
+import { DatabaseIcon, XCircle } from 'lucide-react';
 import { Trace, TraceStatus } from '@/types/trace';
 import { Skeleton } from '@/components/ui/skeleton';
 import CopyButton from '@/components/copy-button';
@@ -87,22 +87,9 @@ export function TracesTable({
   error = null,
   className,
 }: TracesTableProps) {
-  const handleClear = async () => {
-    try {
-      await fetch('/clean', { method: 'POST' });
-      window.location.reload();
-    } catch (e) {
-      console.error('Failed to clear data', e);
-    }
-  };
   if (isLoading) {
     return (
       <div className={cn('w-full', className)}>
-        <div className="flex justify-end pb-2">
-          <button onClick={handleClear} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm">
-            <Trash2 className="w-4 h-4" /> Clear
-          </button>
-        </div>
         <Table>
           <TableHeader>
             <TableRow>
@@ -164,11 +151,6 @@ export function TracesTable({
 
   return (
     <div className={cn('w-full max-h-full overflow-auto', className)}>
-      <div className="flex justify-end pb-2">
-        <button onClick={handleClear} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm">
-          <Trash2 className="w-4 h-4" /> Clear
-        </button>
-      </div>
       <Table>
         <TableHeader>
           <TableRow>

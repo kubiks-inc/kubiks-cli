@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
+import { Trash2 } from 'lucide-react';
 import { TracesTable } from './traces-table';
 import { TraceDrawer } from './trace-drawer';
 import { useSpans } from '@/hooks/use-traces';
 import { Trace } from '@/types/trace';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { fetchAllLogs, LogRecord } from '@/api/traces';
 import { LogsTable } from './logs-tab';
 
 interface TracesContentProps {
@@ -18,9 +18,6 @@ export const TracesContent = ({ timerange }: TracesContentProps) => {
   const [selectedTrace, setSelectedTrace] = useState<Trace | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'traces' | 'logs'>('traces');
-  const [logs, setLogs] = useState<LogRecord[]>([]);
-  const [logsLoading, setLogsLoading] = useState<boolean>(false);
-  const [logsError, setLogsError] = useState<string | null>(null);
 
   const {
     data: spansMap,
@@ -40,24 +37,28 @@ export const TracesContent = ({ timerange }: TracesContentProps) => {
     setSelectedTrace(null);
   };
 
-  useEffect(() => {
-    if (activeTab !== 'logs') return;
-    setLogsLoading(true);
-    setLogsError(null);
-    fetchAllLogs()
-      .then(setLogs)
-      .catch(err => setLogsError(err?.message ?? 'Failed to load logs'))
-      .finally(() => setLogsLoading(false));
-  }, [activeTab]);
+  const handleClear = async () => {
+    try {
+      await fetch('/clean', { method: 'POST' });
+      window.location.reload();
+    } catch (e) {
+      console.error('Failed to clear data', e);
+    }
+  };
 
   return (
     <div className="container mx-auto h-full">
       <div className="w-full space-y-4 p-4">
         <Tabs value={activeTab} onValueChange={v => setActiveTab(v as 'traces' | 'logs')}>
-          <TabsList>
-            <TabsTrigger value="traces">Traces</TabsTrigger>
-            <TabsTrigger value="logs">Logs</TabsTrigger>
-          </TabsList>
+          <div className="flex items-center justify-between pb-2">
+            <TabsList>
+              <TabsTrigger value="traces">Traces</TabsTrigger>
+              <TabsTrigger value="logs">Logs</TabsTrigger>
+            </TabsList>
+            <button onClick={handleClear} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md border text-sm">
+              <Trash2 className="w-4 h-4" /> Clear
+            </button>
+          </div>
           <TabsContent value="traces">
             <TracesTable
               traces={traces}
@@ -67,7 +68,7 @@ export const TracesContent = ({ timerange }: TracesContentProps) => {
             />
           </TabsContent>
           <TabsContent value="logs">
-            <LogsTable logs={logs} loading={logsLoading} error={logsError} />
+            <LogsTable />
           </TabsContent>
         </Tabs>
 

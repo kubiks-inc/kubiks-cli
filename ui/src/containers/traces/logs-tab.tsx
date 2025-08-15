@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Fragment, useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CopyButton } from '@/components/copy-button';
-import { LogRecord } from '@/api/traces';
+import useSWR from 'swr';
+import { fetchAllLogs, LogRecord } from '@/api/traces';
 
 function nanoToDateString(nano?: string) {
   if (!nano) return '';
@@ -33,13 +34,45 @@ function bodyToString(body: any): string {
   return String(body);
 }
 
-export function LogsTable({ logs, loading, error }: { logs: LogRecord[]; loading?: boolean; error?: string | null; }) {
+export function LogsTable() {
+  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const { data, error, isLoading } = useSWR<LogRecord[]>(
+    'logs-all',
+    () => fetchAllLogs(),
+    { refreshInterval: 1000, revalidateOnFocus: false }
+  );
+  const logs = data ?? [];
+
+  const toggleRow = (index: number) => {
+    setExpanded(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index); else next.add(index);
+      return next;
+    });
+  };
+
+  const truncate = (value: string, max: number) => {
+    if (!value) return '';
+    if (value.length <= max) return value;
+    return value.slice(0, max) + '…';
+  };
+
+  const severityClasses = (severityText?: string) => {
+    const s = String(severityText || '').toUpperCase();
+    if (s.includes('FATAL')) return 'bg-red-200 text-red-900 dark:bg-red-900/40 dark:text-red-200';
+    if (s.includes('ERROR')) return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
+    if (s.includes('WARN')) return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300';
+    if (s.includes('INFO')) return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300';
+    if (s.includes('DEBUG')) return 'bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-300';
+    if (s.includes('TRACE')) return 'bg-slate-100 text-slate-800 dark:bg-slate-900/30 dark:text-slate-300';
+    return 'bg-muted text-foreground';
+  };
   return (
     <ScrollArea className="flex-1 min-h-0">
       <div className="p-4">
-        {loading && <div className="text-sm text-muted-foreground">Loading logs…</div>}
-        {error && <div className="text-sm text-destructive">{error}</div>}
-        {!loading && !error && (
+        {isLoading && <div className="text-sm text-muted-foreground">Loading logs…</div>}
+        {error && <div className="text-sm text-destructive">{String((error as any)?.message || error)}</div>}
+        {!isLoading && !error && (
           <Table>
             <TableHeader>
               <TableRow>
@@ -50,27 +83,44 @@ export function LogsTable({ logs, loading, error }: { logs: LogRecord[]; loading
               </TableRow>
             </TableHeader>
             <TableBody>
-              {logs.map((log, idx) => (
-                <TableRow key={idx}>
-                  <TableCell>
-                    <span className="text-muted-foreground">{nanoToDateString(log.timeUnixNano || log.observedTimeUnixNano)}</span>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs bg-muted px-2 py-1 rounded font-mono">{String(log.severityText ?? '')}</span>
-                      {typeof log.severityNumber !== 'undefined' && (
-                        <span className="text-xs text-muted-foreground">{String(log.severityNumber)}</span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm break-words whitespace-pre-wrap">{bodyToString(log.body)}</div>
-                  </TableCell>
-                  <TableCell>
-                    <CopyButton text={JSON.stringify(log)} />
-                  </TableCell>
-                </TableRow>
-              ))}
+              {logs.map((log, idx) => {
+                const fullMessage = bodyToString(log.body);
+                const isExpanded = expanded.has(idx);
+                return (
+                  <Fragment key={idx}>
+                    <TableRow key={`row-${idx}`} className="cursor-pointer" onClick={() => toggleRow(idx)}>
+                      <TableCell>
+                        <span className="text-muted-foreground">{nanoToDateString(log.timeUnixNano || log.observedTimeUnixNano)}</span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs px-2 py-1 rounded font-mono ${severityClasses(log.severityText)}`}>{String(log.severityText ?? '')}</span>
+                          {typeof log.severityNumber !== 'undefined' && (
+                            <span className="text-xs text-muted-foreground">{String(log.severityNumber)}</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm break-words whitespace-pre-wrap">
+                          {truncate(fullMessage, 80)}
+                        </div>
+                      </TableCell>
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <CopyButton text={JSON.stringify(log)} />
+                      </TableCell>
+                    </TableRow>
+                    {isExpanded && (
+                      <TableRow key={`expand-${idx}`}>
+                        <TableCell colSpan={4}>
+                          <div className="text-sm text-foreground/90 break-words whitespace-pre-wrap">
+                            {fullMessage}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
+                );
+              })}
               {logs.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={4}>
