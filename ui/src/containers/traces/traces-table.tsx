@@ -74,7 +74,6 @@ export function TracesTable({
           <TableHeader>
             <TableRow>
               <TableHead>Timestamp</TableHead>
-              <TableHead>Trace ID</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Service</TableHead>
               <TableHead>Duration</TableHead>
@@ -141,7 +140,6 @@ export function TracesTable({
         <TableHeader>
           <TableRow>
             <TableHead>Timestamp</TableHead>
-            <TableHead>Trace ID</TableHead>
             <TableHead>Name</TableHead>
             <TableHead>Service</TableHead>
             <TableHead>Duration</TableHead>
@@ -163,18 +161,6 @@ export function TracesTable({
                 <span className="text-muted-foreground">
                   {formatTimestamp(trace.timestamp)}
                 </span>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <code className="text-xs bg-muted px-2 py-1 rounded">
-                    {trace.traceId.substring(0, 10)}...
-                  </code>
-                  <CopyButton
-                    text={trace.traceId}
-                    buttonClassName="h-5 w-5"
-                    iconClassName="h-3 w-3"
-                  />
-                </div>
               </TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
