@@ -11,12 +11,20 @@
     "skipLibCheck": true,
     "jsx": "react-jsx",
     "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "src/*"
+      ]
+    },
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
     "strict": true
   },
   "include": [
-    "src"
+    "src",
+    "lib",
+    "containers"
   ]
 }
