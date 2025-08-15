@@ -564,7 +564,7 @@ export const TraceDrawer = ({
 }: TraceDrawerProps) => {
   const { data: apiSpans = [] } = useSpans(trace.traceId);
   const { data: logs, isLoading: isLogsLoading } = useTraceLogs(trace.traceId);
-  const spans = demoSpans || apiSpans;
+  const spans: Span[] = (demoSpans ?? apiSpans) as Span[];
   const [selectedSpanId, setSelectedSpanId] = useState<string>('');
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [modalState, setModalState] = useState<{
