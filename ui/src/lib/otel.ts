@@ -84,8 +84,8 @@ export function summarizeTrace(record: TraceRecord) {
   const minStart = Math.min(...spans.map(s => new Date(s.timestamp).getTime()))
   const maxEnd = Math.max(...spans.map(s => new Date(s.timestamp).getTime() + s.durationMs))
   const durationMs = Math.max(maxEnd - minStart, 0)
-  // choose a representative span: first server/client or first span
-  const rep = spans.find(s => s.spanKind === 'SERVER') || spans.find(s => s.spanKind === 'CLIENT') || spans[0]
+  // choose a representative span: root (no parent), then server/client, then first
+  const rep = spans.find(s => !s.parentSpanId) || spans.find(s => s.spanKind === 'SERVER') || spans.find(s => s.spanKind === 'CLIENT') || spans[0]
   const statusCode = rep.statusCode || ''
   const statusText = statusCode ? (Number(statusCode) >= 400 ? 'Error' : 'OK') : (rep.statusMessage || 'Unknown')
   const name = rep.spanName || '—'

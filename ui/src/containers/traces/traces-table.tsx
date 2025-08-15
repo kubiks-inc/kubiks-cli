@@ -41,9 +41,9 @@ const getStatusText = (status: TraceStatus) => {
 
 const formatDuration = (durationMs: number) => {
   if (durationMs < 1000) {
-    return `${durationMs}ms`;
+    return `${Number(durationMs.toFixed(2))}ms`;
   }
-  return `${(durationMs / 1000).toFixed(2)}s`;
+  return `${Number((durationMs / 1000).toFixed(2))}s`;
 };
 
 const formatTimestamp = (timestamp: string) => {

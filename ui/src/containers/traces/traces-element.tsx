@@ -6,7 +6,6 @@ import { TraceDrawer } from './trace-drawer';
 import { useTraces } from '@/hooks/use-traces';
 import { extractSpansFromRecord } from '@/lib/otel';
 import { Trace } from '@/types/trace';
-import { TraceFilters } from './trace-filters-ui';
 
 interface TracesContentProps {
   timerange?: { start: Date; end: Date };
@@ -16,7 +15,7 @@ export const TracesContent = ({ timerange }: TracesContentProps) => {
 
   const [selectedTrace, setSelectedTrace] = useState<Trace | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  // Search input removed; fetching paginated traces only
 
   const {
     data: allTraces,
@@ -27,7 +26,7 @@ export const TracesContent = ({ timerange }: TracesContentProps) => {
     loadMore,
     resetTraces,
     isValidating,
-  } = useTraces(searchQuery);
+  } = useTraces('');
 
   const handleTraceClick = (trace: Trace) => {
     setSelectedTrace(trace);
@@ -39,19 +38,15 @@ export const TracesContent = ({ timerange }: TracesContentProps) => {
     setSelectedTrace(null);
   };
 
-  const handleSearchChange = (newQuery: string) => {
-    setSearchQuery(newQuery);
-  };
+  // no-op: search removed
 
   return (
     <>
       <div className="container mx-auto h-full">
         <div className="w-full space-y-4 p-4">
-          <TraceFilters
-            onSearchChange={handleSearchChange}
-          />
+          {/* search removed */}
           <TracesTable
-            traces={allTraces as any}
+            traces={allTraces}
             onTraceClick={handleTraceClick}
             onLoadMore={loadMore}
             hasMore={hasMore}

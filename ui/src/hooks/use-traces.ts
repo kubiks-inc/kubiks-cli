@@ -73,6 +73,9 @@ export function useTraces(searchQuery: string) {
     });
   }, [filteredRecords]);
 
+  // Show unique trace IDs only (records already unique by trace_id); additionally ensure only parent/root span summarized
+  const uniqueMappedTraces = mappedTraces;
+
   const hasMore = useMemo(() => {
     if (!data || data.length === 0) return false;
     const lastPage = data[data.length - 1];
@@ -87,7 +90,7 @@ export function useTraces(searchQuery: string) {
   };
 
   return {
-    data: mappedTraces,
+    data: uniqueMappedTraces,
     recordsByTraceId,
     isLoading,
     error,
