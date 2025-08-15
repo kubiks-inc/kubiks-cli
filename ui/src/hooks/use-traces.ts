@@ -61,7 +61,7 @@ export function useSpans(searchQuery: string) {
 
       const statusCodes = spans.map(r => r.attributes['http.status_code']).filter(r => r);
 
-      const statusText = statusCodes.join(', ');
+      const statusText = statusCodes.length > 0 ? statusCodes[0] : '';
 
       let spanName = rootSpan?.attributes['next.span_name']
 
