@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/kubiks-inc/kubiks-cli/internal/database"
 	"github.com/kubiks-inc/kubiks-cli/pkg/types"
@@ -158,4 +159,53 @@ func (s *Server) StatsHandler(w http.ResponseWriter, r *http.Request) {
 		"traces_count": %d,
 		"database_path": "%s"
 	}`, stats["logs_count"], stats["metrics_count"], stats["traces_count"], types.GetDatabasePath())
+}
+
+// TracesHandler returns paginated traces as JSON (no auth) with CORS *
+func (s *Server) TracesHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	q := r.URL.Query()
+	limit := 50
+	offset := 0
+	if v := q.Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 1000 {
+			limit = n
+		}
+	}
+	if v := q.Get("offset"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			offset = n
+		}
+	}
+
+	records, err := s.db.GetTracesPaginated(limit, offset)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Failed to get traces: %v", err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "[")
+	for i, rec := range records {
+		if i > 0 {
+			fmt.Fprintf(w, ",")
+		}
+		fmt.Fprintf(w, `{"id":%d,"trace_id":"%s","servicename":"%s","timestamp":"%s","data":%s}`,
+			rec.ID, rec.TraceID, rec.ServiceName, rec.Timestamp.Format("2006-01-02T15:04:05Z07:00"), rec.Data)
+	}
+	fmt.Fprintf(w, "]")
 }

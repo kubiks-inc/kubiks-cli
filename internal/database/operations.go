@@ -134,3 +134,31 @@ func (db *DB) GetTracesPaginatedByService(serviceName string, limit, offset int)
 func (db *DB) GetDB() *sql.DB {
 	return db.conn
 }
+
+// GetTracesPaginated retrieves traces with pagination across all services
+func (db *DB) GetTracesPaginated(limit, offset int) ([]*OTELRecord, error) {
+	query := `SELECT id, trace_id, servicename, timestamp, data FROM otel_traces 
+		ORDER BY timestamp DESC LIMIT ? OFFSET ?`
+
+	rows, err := db.conn.Query(query, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query otel_traces: %w", err)
+	}
+	defer rows.Close()
+
+	var records []*OTELRecord
+	for rows.Next() {
+		record := &OTELRecord{}
+		err := rows.Scan(&record.ID, &record.TraceID, &record.ServiceName, &record.Timestamp, &record.Data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan otel_traces row: %w", err)
+		}
+		records = append(records, record)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating otel_traces rows: %w", err)
+	}
+
+	return records, nil
+}

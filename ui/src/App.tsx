@@ -1,3 +1,4 @@
+import React, { useEffect } from 'react'
 import { BrowserRouter, Link, Route, Routes } from 'react-router-dom'
 
 function Home() {
@@ -27,6 +28,14 @@ function TracePage() {
 }
 
 export default function App() {
+  useEffect(() => {
+    fetch('http://localhost:7432/api/traces?limit=5')
+      .then((r) => r.json())
+      .then((data) => {
+        console.log('Traces:', data)
+      })
+      .catch((e) => console.error('Failed to fetch traces', e))
+  }, [])
   return (
     <div className="min-h-svh p-6 font-sans">
       <BrowserRouter>
