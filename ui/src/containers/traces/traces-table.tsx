@@ -176,7 +176,7 @@ export function TracesTable({
             <TableHead>Name</TableHead>
             <TableHead>Service</TableHead>
             <TableHead>Duration</TableHead>
-            <TableHead>Status Code</TableHead>
+            <TableHead>Status Codes</TableHead>
             {/* <TableHead>Status</TableHead> */}
           </TableRow>
         </TableHeader>
@@ -212,7 +212,7 @@ export function TracesTable({
               </TableCell>
               <TableCell>
                 {trace.statusCode && (
-                  <code className="text-xs bg-muted px-2 py-1 rounded font-mono">
+                  <code className="text-xs bg-muted px-2 py-1 rounded font-mono flex items-center gap-1">
                     {getStatusText(trace.statusCode)}
                   </code>
                 )}
