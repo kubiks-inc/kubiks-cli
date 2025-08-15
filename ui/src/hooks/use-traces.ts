@@ -1,11 +1,11 @@
 'use client';
 
-import useSWR from 'swr';
+import useSWRInfinite from 'swr/infinite';
 import { useMemo } from 'react';
 import { fetchTraces, type TraceRecord } from '@/api/traces';
 import { Trace, TraceStatus } from '@/types/trace';
 
-const PAGE_LIMIT = 500; // large page size to minimize requests
+const PAGE_LIMIT = 50;
 
 function mapRecordToTrace(record: TraceRecord): Trace {
   return {
@@ -21,50 +21,64 @@ function mapRecordToTrace(record: TraceRecord): Trace {
   };
 }
 
-async function fetchAllTraces(): Promise<TraceRecord[]> {
-  const results: TraceRecord[] = [];
-  let offset = 0;
-  // paginate until API returns empty page
-  // prevent runaway: cap at 100k rows
-  for (let i = 0; i < 200; i++) {
-    const page = await fetchTraces({ limit: PAGE_LIMIT, offset });
-    if (!page || page.length === 0) break;
-    results.push(...page);
-    if (page.length < PAGE_LIMIT) break;
-    offset += PAGE_LIMIT;
-  }
-  return results;
-}
-
 export function useTraces(searchQuery: string) {
-  const { data, error, isLoading, isValidating, mutate } = useSWR<TraceRecord[]>(
-    'all-traces',
-    fetchAllTraces,
-    { revalidateOnFocus: false }
-  );
+  const getKey = (pageIndex: number, previousPageData: TraceRecord[] | null) => {
+    if (previousPageData && previousPageData.length === 0) return null;
+    const offset = pageIndex * PAGE_LIMIT;
+    return ['traces', PAGE_LIMIT, offset] as const;
+  };
+
+  const fetcher = async (_key: readonly unknown[]) => {
+    const limit = _key[1] as number;
+    const offset = _key[2] as number;
+    return fetchTraces({ limit, offset });
+  };
+
+  const {
+    data,
+    size,
+    setSize,
+    isLoading,
+    isValidating,
+    error,
+    mutate,
+  } = useSWRInfinite<TraceRecord[]>(getKey, fetcher, {
+    revalidateFirstPage: false,
+  });
+
+  const flatRecords = useMemo(() => (data ? ([] as TraceRecord[]).concat(...data) : []), [data]);
 
   const filteredRecords = useMemo(() => {
-    const records = data ?? [];
+    const records = flatRecords;
     if (!searchQuery) return records;
     const q = searchQuery.toLowerCase();
     return records.filter(r =>
       (r.trace_id && r.trace_id.toLowerCase().includes(q)) ||
       (r.servicename && r.servicename.toLowerCase().includes(q))
     );
-  }, [data, searchQuery]);
+  }, [flatRecords, searchQuery]);
 
   const traces: Trace[] = useMemo(() => filteredRecords.map(mapRecordToTrace), [filteredRecords]);
 
+  const hasMore = useMemo(() => {
+    if (!data || data.length === 0) return false;
+    const lastPage = data[data.length - 1];
+    return lastPage.length === PAGE_LIMIT;
+  }, [data]);
+
+  const loadMore = () => setSize(size + 1);
+
   const resetTraces = async () => {
-    await mutate(undefined, { revalidate: true });
+    await mutate([], { revalidate: false });
+    await setSize(1);
   };
 
   return {
     data: traces,
     isLoading,
     error,
-    hasMore: false,
-    loadMore: () => { },
+    hasMore,
+    loadMore,
     resetTraces,
     isValidating,
   } as const;
