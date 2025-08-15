@@ -9,60 +9,16 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
-
-	"github.com/kubiks-inc/kubiks-cli/internal/instrumentation"
 )
 
-// NextJSExecutor handles execution of Next.js applications with OpenTelemetry instrumentation
+// NextJSExecutor handles execution of Next.js applications with OpenTelemetry environment configuration
 type NextJSExecutor struct {
-	instrumentationPath string
+	// No instrumentation path needed anymore
 }
 
 // NewNextJSExecutor creates a new Next.js executor
 func NewNextJSExecutor() (*NextJSExecutor, error) {
-	// Try to use embedded instrumentation first
-	if instrumentation.IsEmbedded() {
-		instrumentationPath, err := instrumentation.GetInstrumentationPath()
-		if err != nil {
-			return nil, fmt.Errorf("failed to extract embedded instrumentation: %w", err)
-		}
-
-		return &NextJSExecutor{
-			instrumentationPath: instrumentationPath,
-		}, nil
-	}
-
-	// Fallback to local file (for development)
-	// Get the path to the current executable
-	execPath, err := os.Executable()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get executable path: %w", err)
-	}
-
-	// For Homebrew distribution, place instrumentation.js next to the binary
-	// This follows best practices for Homebrew packages
-	execDir := filepath.Dir(execPath)
-	instrumentationPath := filepath.Join(execDir, "instrumentation.js")
-
-	executor := &NextJSExecutor{
-		instrumentationPath: instrumentationPath,
-	}
-
-	// Ensure instrumentation file exists
-	if err := executor.ensureInstrumentationFile(); err != nil {
-		return nil, fmt.Errorf("failed to create instrumentation file: %w", err)
-	}
-
-	return executor, nil
-}
-
-// ensureInstrumentationFile checks if the instrumentation.js file exists
-func (e *NextJSExecutor) ensureInstrumentationFile() error {
-	// Check if file exists
-	if _, err := os.Stat(e.instrumentationPath); err != nil {
-		return fmt.Errorf("instrumentation file not found at %s. Please run 'make build' to generate it", e.instrumentationPath)
-	}
-	return nil
+	return &NextJSExecutor{}, nil
 }
 
 // RunDirect runs the Next.js development server directly without TUI wrapper
@@ -74,8 +30,7 @@ func (e *NextJSExecutor) RunDirect() error {
 
 	serviceName := e.getServiceNameFromPackageJSON()
 	collectorPort := "7432"
-	fmt.Println("🚀 Starting Next.js development server with OpenTelemetry instrumentation...")
-	fmt.Printf("📊 Instrumentation file: %s\n", e.instrumentationPath)
+	fmt.Println("🚀 Starting Next.js development server with OpenTelemetry environment configuration...")
 	fmt.Printf("🏷️  Service name: %s\n", serviceName)
 	fmt.Printf("🔗 OTEL Endpoint: http://localhost:%s\n", collectorPort)
 	fmt.Println("📡 OTEL Protocol: http/json")
@@ -138,7 +93,7 @@ func (e *NextJSExecutor) RunDirect() error {
 	return err
 }
 
-// createCommand creates the exec.Cmd with proper NODE_OPTIONS
+// createCommand creates the exec.Cmd with proper OpenTelemetry environment variables
 func (e *NextJSExecutor) createCommand() (*exec.Cmd, error) {
 	// Create the command
 	cmd := exec.Command("npm", "run", "dev")
@@ -148,24 +103,6 @@ func (e *NextJSExecutor) createCommand() (*exec.Cmd, error) {
 
 	// Get service name from package.json
 	serviceName := e.getServiceNameFromPackageJSON()
-
-	// Set NODE_OPTIONS with the instrumentation file
-	nodeOptions := fmt.Sprintf("--require %s", e.instrumentationPath)
-
-	// Check if NODE_OPTIONS already exists and append to it
-	var nodeOptionsSet bool
-	for i, envVar := range env {
-		if len(envVar) > 12 && envVar[:12] == "NODE_OPTIONS" {
-			env[i] = envVar + " " + nodeOptions
-			nodeOptionsSet = true
-			break
-		}
-	}
-
-	// If NODE_OPTIONS doesn't exist, add it
-	if !nodeOptionsSet {
-		env = append(env, "NODE_OPTIONS="+nodeOptions)
-	}
 
 	collectorPort := "7432"
 	collectorURL := fmt.Sprintf("http://localhost:%s", collectorPort)
@@ -203,11 +140,6 @@ func (e *NextJSExecutor) validateEnvironment() error {
 		return fmt.Errorf("node_modules not found. Please run 'npm install' first")
 	}
 
-	// Check if the instrumentation file exists and can be created
-	if err := e.ensureInstrumentationFile(); err != nil {
-		return fmt.Errorf("failed to create instrumentation file: %w", err)
-	}
-
 	return nil
 }
 
@@ -243,9 +175,4 @@ func (e *NextJSExecutor) getServiceNameFromPackageJSON() string {
 
 	fmt.Printf("📦 Using service name from package.json: %s\n", pkg.Name)
 	return pkg.Name
-}
-
-// GetInstrumentationPath returns the path to the instrumentation file
-func (e *NextJSExecutor) GetInstrumentationPath() string {
-	return e.instrumentationPath
 }

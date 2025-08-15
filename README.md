@@ -2,19 +2,19 @@
 
 [![Tests](https://github.com/kubiks-inc/kubiks-cli/actions/workflows/test.yml/badge.svg)](https://github.com/kubiks-inc/kubiks-cli/actions/workflows/test.yml)
 
-**AI-powered debugging for Next.js applications.** Automatically instrument your app, capture all logs, traces, and requests, then let Cursor fix bugs with full context.
+**AI-powered debugging for Next.js applications.** Configure OpenTelemetry environment variables, capture all logs, traces, and requests, then let Cursor fix bugs with full context.
 
 ## 🎬 Demo
 
 ![Kubiks CLI Demo](images/kubiks-cli-demo.gif)
 
-*Watch Kubiks CLI in action: automatic instrumentation, real-time telemetry capture, and AI-powered debugging with Cursor.*
+*Watch Kubiks CLI in action: environment configuration, real-time telemetry capture, and AI-powered debugging with Cursor.*
 
 ## 🎯 What is Kubiks CLI?
 
 When something breaks in your Next.js app, wouldn't it be amazing if your AI code editor could see exactly what happened? **Kubiks CLI makes this possible.**
 
-- 🔍 **Auto-instrument** your Next.js application with zero config
+- 🔧 **Configure OpenTelemetry** environment variables for your Next.js application
 - 📊 **Capture everything**: HTTP requests, SQL queries, AI SDK calls, server/client logs
 - 🤖 **Feed Cursor** complete context through MCP (Model Context Protocol)  
 - ⚡ **Debug faster**: Ask Cursor to fix issues with full trace data and request payloads
@@ -22,7 +22,7 @@ When something breaks in your Next.js app, wouldn't it be amazing if your AI cod
 ## ✨ The Developer Experience
 
 ```bash
-# Start developing with full observability
+# Start developing with OpenTelemetry environment configuration
 kubiks 
 
 # When something breaks, just ask Cursor:
@@ -34,11 +34,11 @@ kubiks
 
 ![Kubiks CLI Architecture](images/diagram.png)
 
-*Kubiks CLI automatically instruments your Next.js app, captures telemetry data, and makes it available to Cursor through MCP for AI-powered debugging.*
+*Kubiks CLI configures OpenTelemetry environment variables for your Next.js app, captures telemetry data, and makes it available to Cursor through MCP for AI-powered debugging.*
 
 ## 🚀 Core Features
 
-- **🔧 Zero-configuration instrumentation** for Next.js applications
+- **🔧 OpenTelemetry environment configuration** for Next.js applications
 - **📡 Real-time telemetry collection** (logs, metrics, traces)
 - **🗄️ Local SQLite storage** with intelligent querying
 - **🤖 MCP integration** for seamless AI editor support
@@ -91,7 +91,7 @@ Cursor will have complete visibility into your application's behavior.
 
 ## 🛠️ How It Works
 
-1. **Instrument**: Kubiks automatically adds OpenTelemetry to your Next.js app
+1. **Configure**: Kubiks sets up OpenTelemetry environment variables for your Next.js app
 2. **Capture**: All HTTP requests, database queries, API calls, and logs are recorded
 3. **Store**: Data is stored locally in SQLite for fast querying
 4. **Expose**: MCP server provides structured access to all telemetry data
@@ -101,7 +101,7 @@ Cursor will have complete visibility into your application's behavior.
 ### Try it yourself:
 
 ```bash
-# Terminal 1: Start your instrumented Next.js app
+# Terminal 1: Start your Next.js app with OpenTelemetry configuration
 cd my-nextjs-app
 kubiks 
 
@@ -126,7 +126,7 @@ kubiks
 
 Kubiks works out of the box with zero configuration. It automatically:
 - Detects Next.js projects
-- Configures OpenTelemetry instrumentation
+- Configures OpenTelemetry environment variables
 - Sets up local data storage
 - Exposes MCP endpoints for Cursor
 

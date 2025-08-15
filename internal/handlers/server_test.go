@@ -215,7 +215,7 @@ func TestServer_OTELLogsHandler_Success(t *testing.T) {
 		t.Errorf("Expected Content-Type application/json, got %s", resp.Header.Get("Content-Type"))
 	}
 
-	expectedResponse := `{"partialSuccess":{}}`
+	expectedResponse := `{"partialSuccess":{},"inserted":0}`
 	if body != expectedResponse {
 		t.Errorf("Expected %s, got %s", expectedResponse, body)
 	}
@@ -331,7 +331,7 @@ func TestServer_OTELTracesHandler_Success(t *testing.T) {
 		t.Errorf("Expected Content-Type application/json, got %s", resp.Header.Get("Content-Type"))
 	}
 
-	expectedResponse := `{"partialSuccess":{}}`
+	expectedResponse := `{"partialSuccess":{},"inserted":0}`
 	if body != expectedResponse {
 		t.Errorf("Expected %s, got %s", expectedResponse, body)
 	}
@@ -446,7 +446,26 @@ func TestServer_Integration(t *testing.T) {
 	defer server.Close()
 
 	// Test inserting and retrieving data
-	logData := `{"timestamp":"2023-01-01T00:00:00Z","message":"integration test","traceId":"integration-123"}`
+	logData := `{
+		"resourceLogs": [{
+			"resource": {
+				"attributes": [
+					{"key": "service.name", "value": {"stringValue": "test-service"}}
+				]
+			},
+			"scopeLogs": [{
+				"scope": {},
+				"logRecords": [{
+					"timeUnixNano": "1640995200000000000",
+					"severityText": "INFO",
+					"body": {"stringValue": "integration test"},
+					"attributes": [
+						{"key": "traceId", "value": {"stringValue": "integration-123"}}
+					]
+				}]
+			}]
+		}]
+	}`
 
 	// Insert log
 	req := httptest.NewRequest("POST", "/otel/logs", bytes.NewBufferString(logData))
