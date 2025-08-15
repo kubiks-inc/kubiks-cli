@@ -9,7 +9,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@kubiks/otel-nextjs": "file:../../otel-nextjs"
+    "@kubiks/otel-nextjs": "^1.0.26"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
