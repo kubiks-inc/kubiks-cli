@@ -85,6 +85,8 @@ func (c *ServerCommand) startServer() error {
 	otelMux.HandleFunc("/stats", otelServer.StatsHandler)
 	otelMux.HandleFunc("/api/spans", otelServer.TracesHandler)
 	otelMux.HandleFunc("/api/spans-all", otelServer.TracesAllHandler)
+	otelMux.HandleFunc("/api/logs-all", otelServer.LogsAllHandler)
+	otelMux.HandleFunc("/api/logs", otelServer.LogsByTraceHandler)
 	otelMux.HandleFunc("/clean", otelServer.CleanHandler)
 
 	// Create OTEL HTTP server

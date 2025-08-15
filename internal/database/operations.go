@@ -420,6 +420,62 @@ func (db *DB) GetTracesAll() ([]*OTELRecord, error) {
 	return records, nil
 }
 
+// GetLogsAll retrieves all logs without pagination across all services
+func (db *DB) GetLogsAll() ([]*OTELRecord, error) {
+	query := `SELECT id, trace_id, servicename, timestamp, data FROM otel_logs 
+        ORDER BY timestamp DESC`
+
+	rows, err := db.conn.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query all otel_logs: %w", err)
+	}
+	defer rows.Close()
+
+	var records []*OTELRecord
+	for rows.Next() {
+		record := &OTELRecord{}
+		err := rows.Scan(&record.ID, &record.TraceID, &record.ServiceName, &record.Timestamp, &record.Data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan otel_logs row: %w", err)
+		}
+		records = append(records, record)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating otel_logs rows: %w", err)
+	}
+
+	return records, nil
+}
+
+// GetLogsByTraceID retrieves all logs for a specific trace ID
+func (db *DB) GetLogsByTraceID(traceID string) ([]*OTELRecord, error) {
+	query := `SELECT id, trace_id, servicename, timestamp, data FROM otel_logs 
+        WHERE trace_id = ? ORDER BY timestamp DESC`
+
+	rows, err := db.conn.Query(query, traceID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query otel_logs by trace_id: %w", err)
+	}
+	defer rows.Close()
+
+	var records []*OTELRecord
+	for rows.Next() {
+		record := &OTELRecord{}
+		err := rows.Scan(&record.ID, &record.TraceID, &record.ServiceName, &record.Timestamp, &record.Data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan otel_logs row: %w", err)
+		}
+		records = append(records, record)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating otel_logs rows: %w", err)
+	}
+
+	return records, nil
+}
+
 // ClearAll removes all data from OTEL tables
 func (db *DB) ClearAll() error {
 	tx, err := db.conn.Begin()

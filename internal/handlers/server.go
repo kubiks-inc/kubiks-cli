@@ -133,8 +133,6 @@ func (s *Server) OTELTracesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	// fmt.Printf("Received payload: %s\n", string(body))
-
 	// Insert one record per span, carrying resource attributes
 	count, err := s.db.InsertTracesFromPayload(body)
 	if err != nil {
@@ -265,6 +263,98 @@ func (s *Server) TracesAllHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Failed to get all traces: %v", err)
+		return
+	}
+
+	results := make([]interface{}, len(records))
+
+	for i, rec := range records {
+		var data interface{}
+
+		if err := json.Unmarshal([]byte(rec.Data), &data); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "Failed to unmarshal data: %v", err)
+			return
+		}
+
+		results[i] = data
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(results)
+}
+
+// LogsAllHandler returns all logs as JSON (no auth) with CORS *
+// It unmarshals and returns only the JSON stored in the data column
+func (s *Server) LogsAllHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	records, err := s.db.GetLogsAll()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Failed to get all logs: %v", err)
+		return
+	}
+
+	results := make([]interface{}, len(records))
+
+	for i, rec := range records {
+		var data interface{}
+
+		if err := json.Unmarshal([]byte(rec.Data), &data); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprintf(w, "Failed to unmarshal data: %v", err)
+			return
+		}
+
+		results[i] = data
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(results)
+}
+
+// LogsByTraceHandler returns logs filtered by traceId as JSON (no auth) with CORS *
+// It unmarshals and returns only the JSON stored in the data column
+func (s *Server) LogsByTraceHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	q := r.URL.Query()
+	traceID := q.Get("traceId")
+	if traceID == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(w, "missing traceId query param")
+		return
+	}
+
+	records, err := s.db.GetLogsByTraceID(traceID)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Failed to get logs by traceId: %v", err)
 		return
 	}
 
