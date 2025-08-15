@@ -6,6 +6,33 @@ import { fetchTraces, type TraceRecord } from '@/api/traces';
 import { Trace, TraceStatus } from '@/types/trace';
 import { summarizeTrace } from '@/lib/otel';
 
+// OTEL data structure types
+interface OtelAttribute {
+  key: string;
+  value?: {
+    stringValue?: string;
+    intValue?: number;
+    doubleValue?: number;
+    boolValue?: boolean;
+  };
+}
+
+interface OtelSpan {
+  attributes?: OtelAttribute[];
+}
+
+interface OtelScopeSpan {
+  spans?: OtelSpan[];
+}
+
+interface OtelResourceSpan {
+  scopeSpans?: OtelScopeSpan[];
+}
+
+interface OtelData {
+  resourceSpans?: OtelResourceSpan[];
+}
+
 const PAGE_LIMIT = 50;
 
 export function useTraces(searchQuery: string) {
@@ -43,15 +70,32 @@ export function useTraces(searchQuery: string) {
     return map;
   }, [flatRecords]);
 
+  console.log(flatRecords);
+
   const filteredRecords = useMemo(() => {
+    // Always filter out internal logs posting to our OTEL endpoint
+    // const records = flatRecords.filter(r => {
+    //   console.log(r.data);
+    //   // Check for /logs endpoint in span attributes instead of serializing
+    //   const otelData = r.data as OtelData;
+    //   const hasLogsEndpoint = otelData?.resourceSpans?.some((resourceSpan: OtelResourceSpan) =>
+    //     resourceSpan.scopeSpans?.some((scopeSpan: OtelScopeSpan) =>
+    //       scopeSpan.spans?.some((span: OtelSpan) =>
+    //         span.attributes?.some((attr: OtelAttribute) =>
+    //           attr.key === 'http.url' &&
+    //           attr.value?.stringValue?.includes('/logs')
+    //         )
+    //       )
+    //     )
+    //   );
+    //   return !hasLogsEndpoint;
+    // });
     const records = flatRecords;
     if (!searchQuery) return records;
     const q = searchQuery.toLowerCase();
     return records.filter(r =>
-      ((r.trace_id && r.trace_id.toLowerCase().includes(q)) ||
-        (r.servicename && r.servicename.toLowerCase().includes(q))) &&
-      // filter out internal logs posting to our OTEL endpoint
-      !JSON.stringify(r.data).includes('"url.full":"http://localhost:7432/v1/logs"')
+      (r.trace_id && r.trace_id.toLowerCase().includes(q)) ||
+      (r.servicename && r.servicename.toLowerCase().includes(q))
     );
   }, [flatRecords, searchQuery]);
 
