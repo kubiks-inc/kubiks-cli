@@ -14,6 +14,7 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/componen
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CopyButton } from '@/components/copy-button';
 import Editor from '@monaco-editor/react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   X,
   ChevronRight,
@@ -616,6 +617,7 @@ export const TraceDrawer = ({
     attributeKey: string;
     attributeValue: string;
   }>({ isOpen: false, attributeKey: '', attributeValue: '' });
+  const [activeTab, setActiveTab] = useState<'spans' | 'logs'>('spans');
 
   useEffect(() => {
     if (spans.length > 0) {
@@ -699,93 +701,105 @@ export const TraceDrawer = ({
             </div>
           </DrawerHeader>
 
-          <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
-            {/* Combined Spans and Timeline Panel */}
-            <ResizablePanel defaultSize={75} minSize={50}>
-              <div className="flex flex-col min-w-0 min-h-0 h-full">
-                <div className="p-4 border-b flex-shrink-0">
-                  <h3 className="font-medium text-sm">Spans & Timeline</h3>
-                </div>
+          <div className="flex-1 min-h-0 flex flex-col">
+            <Tabs value={activeTab} onValueChange={v => setActiveTab(v as 'spans' | 'logs')} className="flex-1 min-h-0 gap-0">
+              <div className="p-4 border-b flex-shrink-0">
+                <TabsList>
+                  <TabsTrigger value="spans">Spans</TabsTrigger>
+                  <TabsTrigger value="logs">Logs</TabsTrigger>
+                </TabsList>
+              </div>
 
-                {/* Sticky Timeline Header */}
-                <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
-                  <div className="flex">
-                    <div className="w-[420px] border-r p-2">
-                      <div className="text-xs text-muted-foreground font-medium">Spans Tree</div>
-                    </div>
-                    <div className="flex-1 p-2">
-                      <div className="flex text-xs text-muted-foreground">
-                        {Array.from({ length: 9 }, (_, i) => {
-                          const stepDuration = maxDuration / 8;
-                          return (
-                            <div
-                              key={i}
-                              className="flex-1 text-center"
-                              style={{ width: `${100 / 9}%` }}
-                            >
-                              {formatDuration(i * stepDuration)}
+              <TabsContent value="spans" className="flex-1 min-h-0 flex">
+                <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
+                  <ResizablePanel defaultSize={75} minSize={50}>
+                    <div className="flex flex-col min-w-0 min-h-0 h-full">
+                      {/* Sticky Timeline Header */}
+                      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
+                        <div className="flex">
+                          <div className="w-[420px] border-r p-2">
+                            <div className="text-xs text-muted-foreground font-medium">Spans Tree</div>
+                          </div>
+                          <div className="flex-1 p-2">
+                            <div className="flex text-xs text-muted-foreground">
+                              {Array.from({ length: 9 }, (_, i) => {
+                                const stepDuration = maxDuration / 8;
+                                return (
+                                  <div
+                                    key={i}
+                                    className="flex-1 text-center"
+                                    style={{ width: `${100 / 9}%` }}
+                                  >
+                                    {formatDuration(i * stepDuration)}
+                                  </div>
+                                );
+                              })}
                             </div>
-                          );
-                        })}
+                          </div>
+                        </div>
                       </div>
+
+                      <ScrollArea className="flex-1 min-h-0">
+                        <div className="flex">
+                          {/* Left side - Span List */}
+                          <div className="w-[420px] border-r">
+                            <div className="p-4">
+                              {spanTree.map(node => (
+                                <SpanListItem
+                                  key={node.span.spanId}
+                                  node={node}
+                                  selectedSpanId={selectedSpanId}
+                                  onSelectSpan={setSelectedSpanId}
+                                  expandedNodes={expandedNodes}
+                                  onToggleExpanded={toggleExpanded}
+                                  startTime={startTime}
+                                  maxDuration={maxDuration}
+                                />
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Right side - Waterfall Chart */}
+                          <div className="flex-1 min-w-0">
+                            <div className="p-4 w-full">
+                              <WaterfallChart
+                                spanTree={spanTree}
+                                selectedSpanId={selectedSpanId}
+                                onSelectSpan={setSelectedSpanId}
+                                startTime={startTime}
+                                maxDuration={maxDuration}
+                                expandedNodes={expandedNodes}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </ScrollArea>
                     </div>
-                  </div>
+                  </ResizablePanel>
+                  <ResizableHandle withHandle />
+                  {/* Right Panel - Span Details */}
+                  <ResizablePanel defaultSize={30} minSize={20} maxSize={50}>
+                    <div className="flex flex-col min-h-0 h-full">
+                      <div className="p-4 border-b flex-shrink-0">
+                        <h3 className="font-medium text-sm">Span Details</h3>
+                      </div>
+                      <ScrollArea className="flex-1 min-h-0">
+                        <div className="p-4">
+                          <SpanDetails span={selectedSpan} onOpenModal={handleOpenModal} />
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  </ResizablePanel>
+                </ResizablePanelGroup>
+              </TabsContent>
+
+              <TabsContent value="logs" className="flex-1 min-h-0">
+                <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground p-6">
+                  Logs tab coming soon
                 </div>
-
-                <ScrollArea className="flex-1 min-h-0">
-                  <div className="flex">
-                    {/* Left side - Span List */}
-                    <div className="w-[420px] border-r">
-                      <div className="p-4">
-                        {spanTree.map(node => (
-                          <SpanListItem
-                            key={node.span.spanId}
-                            node={node}
-                            selectedSpanId={selectedSpanId}
-                            onSelectSpan={setSelectedSpanId}
-                            expandedNodes={expandedNodes}
-                            onToggleExpanded={toggleExpanded}
-                            startTime={startTime}
-                            maxDuration={maxDuration}
-                          />
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Right side - Waterfall Chart */}
-                    <div className="flex-1 min-w-0">
-                      <div className="p-4 w-full">
-                        <WaterfallChart
-                          spanTree={spanTree}
-                          selectedSpanId={selectedSpanId}
-                          onSelectSpan={setSelectedSpanId}
-                          startTime={startTime}
-                          maxDuration={maxDuration}
-                          expandedNodes={expandedNodes}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </ScrollArea>
-              </div>
-            </ResizablePanel>
-
-            <ResizableHandle withHandle />
-
-            {/* Right Panel - Span Details */}
-            <ResizablePanel defaultSize={30} minSize={20} maxSize={50}>
-              <div className="flex flex-col min-h-0 h-full">
-                <div className="p-4 border-b flex-shrink-0">
-                  <h3 className="font-medium text-sm">Span Details</h3>
-                </div>
-                <ScrollArea className="flex-1 min-h-0">
-                  <div className="p-4">
-                    <SpanDetails span={selectedSpan} onOpenModal={handleOpenModal} />
-                  </div>
-                </ScrollArea>
-              </div>
-            </ResizablePanel>
-          </ResizablePanelGroup>
+              </TabsContent>
+            </Tabs>
+          </div>
 
           {/* Footer */}
           <div className="border-t p-4 flex-shrink-0">
