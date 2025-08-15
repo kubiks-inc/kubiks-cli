@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { X, Plus, Filter, Sparkles } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '../../lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,7 +25,6 @@ import {
   getOperatorLabel,
   FilterCondition,
 } from './trace-filters';
-import { TraceFilterLabel } from '@/types/trace-filter';
 import { useTraceFilters } from '@/hooks/use-trace-filters';
 import { useAIFilters } from '@/hooks/use-ai-filters';
 

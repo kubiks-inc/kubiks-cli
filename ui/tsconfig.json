@@ -24,7 +24,7 @@
   },
   "include": [
     "src",
-    "lib",
-    "containers"
+    "src/lib",
+    "src/containers"
   ]
 }

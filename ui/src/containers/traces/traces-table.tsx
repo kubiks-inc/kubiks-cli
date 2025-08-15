@@ -12,7 +12,7 @@ import {
 import { DatabaseIcon, XCircle, Loader2 } from 'lucide-react';
 import { Trace, TraceStatus } from '@/types/trace';
 import { Skeleton } from '@/components/ui/skeleton';
-import InfiniteScroll from '@/components/ui/infinite-scroll';
+import InfiniteScroll from '@/components/infinite-scroll';
 import CopyButton from '@/components/copy-button';
 
 interface TracesTableProps {
@@ -142,7 +142,7 @@ export function TracesTable({
           <InfiniteScroll
             hasMore={hasMore}
             isLoading={isLoadingMore}
-            next={onLoadMore || (() => {})}
+            next={onLoadMore || (() => { })}
             threshold={0.1}
           >
             {traces.map(trace => (
