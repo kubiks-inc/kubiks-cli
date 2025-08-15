@@ -9,10 +9,6 @@ import {
   DrawerTitle,
 } from '@/components/ui/drawer';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Input } from '@/components/ui/input';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -20,12 +16,6 @@ import { CopyButton } from '@/components/copy-button';
 import Editor from '@monaco-editor/react';
 import {
   X,
-  Clock,
-  Hash,
-  Activity,
-  Server,
-  Code,
-  Search,
   ChevronRight,
   ChevronDown,
   Maximize2,
@@ -162,6 +152,8 @@ const SpanListItem = ({
   const isExpanded = expandedNodes.has(span.spanId);
   const hasChildren = children.length > 0;
 
+  const spanName = span.attributes['http.url'] ? span.attributes['http.method'] + ' ' + (span.attributes['http.target'] ?? span.attributes['http.url']) : span.name;
+
   return (
     <div>
       <div
@@ -192,7 +184,7 @@ const SpanListItem = ({
         />
         <span className="text-xs text-muted-foreground min-w-[20px]">1</span>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium truncate">{span.name}</div>
+          <div className="text-sm font-medium truncate">{spanName}</div>
           <div className="text-xs text-muted-foreground truncate">
             {span.resourceAttributes['service.name']}
           </div>

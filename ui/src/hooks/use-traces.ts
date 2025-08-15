@@ -15,6 +15,7 @@ export function useSpans(searchQuery: string) {
   } = useSWR<Span[]>('all-spans', fetchAllSpans, {
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
+    refreshInterval: 1000, // Reload every second
   });
 
   console.log('allSpans', allSpans);
@@ -62,18 +63,60 @@ export function useSpans(searchQuery: string) {
 
       console.log('rootSpan', rootSpan);
 
-      const statusText = (rootSpan?.attributes['http.response.status_code'] ?? '') + ' ' + (rootSpan?.attributes['http.response.status_text'] ?? '');
+      // Filter out requests with undefined/missing attributes and create valid request strings
+      const validRequests = spans
+        .map(r => {
+          const method = r.attributes['http.method'];
+          const url = r.attributes['http.url'];
+          if (method && url) {
+            // Truncate URL to 80 characters and add ... if longer
+            const truncatedUrl = url.length > 50 ? url.substring(0, 50) + '...' : url;
+            return method + ' ' + truncatedUrl;
+          }
+          return null;
+        })
+        .filter(request => request !== null);
+
+      // Get unique status codes and create status text
+      const statusCodes = spans
+        .map(r => {
+          const code = r.attributes['http.status_code'];
+          const text = r.attributes['http.status_text'];
+          if (code) {
+            return text ? `${code} ${text}` : code;
+          }
+          return null;
+        })
+        .filter(status => status !== null);
+
+      // Create status text: first status + "and n more" if multiple different statuses
+      let statusText = statusCodes[0] || '';
+      if (statusCodes.length > 1) {
+        const uniqueStatuses = [...new Set(statusCodes)];
+        if (uniqueStatuses.length > 1) {
+          statusText += ` and ${uniqueStatuses.length - 1} more`;
+        }
+      }
+
+      // Create trace name: first valid request + "and n more" if multiple valid requests
+      let traceName = validRequests[0] || 'Unknown request';
+      if (validRequests.length > 1) {
+        traceName += ` and ${validRequests.length - 1} more`;
+      }
 
       tracesArr.set(traceId, {
         traceId: traceId,
         timestamp: timestamp,
         durationMs,
         statusCode: statusText,
-        name: rootSpan?.name ?? '',
+        name: traceName,
         service: rootSpan?.resourceAttributes['service.name'] ?? '',
       });
     }
-    return Array.from(tracesArr.values());
+    // Sort traces by timestamp (newest first) and return as array
+    return Array.from(tracesArr.values()).sort((a, b) =>
+      new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
   }, [spans, searchQuery]);
 
   const resetTraces = async () => {
