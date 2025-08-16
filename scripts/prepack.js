@@ -26,20 +26,42 @@ function buildGoBinary(goos, goarch, outPath) {
 }
 
 function main() {
+  if (process.env.SKIP_PREPACK === '1' || process.env.NPM_CONFIG_IGNORE_SCRIPTS === 'true') {
+    return;
+  }
+
   const distRoot = join(__dirname, '..', 'dist-bin');
-  // Clean dist-bin to avoid stale artifacts
-  try { rmSync(distRoot, { recursive: true, force: true }); } catch { }
+  // Determine which GOOS set to build
+  const onlyGoosEnv = process.env.ONLY_GOOS && process.env.ONLY_GOOS.trim();
+  const inferredGoos = !onlyGoosEnv && !process.env.CI
+    ? (process.platform === 'darwin' ? 'darwin' : (process.platform === 'linux' ? 'linux' : ''))
+    : '';
 
   // Build frontend once so go:embed picks up fresh assets
   buildUI();
 
   // Build supported targets
-  const targets = [
+  const allTargets = [
     { goos: 'darwin', goarch: 'amd64', folder: 'darwin-amd64' },
     { goos: 'darwin', goarch: 'arm64', folder: 'darwin-arm64' },
     { goos: 'linux', goarch: 'amd64', folder: 'linux-amd64' },
     { goos: 'linux', goarch: 'arm64', folder: 'linux-arm64' },
   ];
+
+  const goosFilter = onlyGoosEnv || inferredGoos || '';
+  const goarchFilter = process.env.ONLY_GOARCH && process.env.ONLY_GOARCH.trim();
+  let targets = goosFilter
+    ? allTargets.filter(t => t.goos === goosFilter)
+    : allTargets;
+  if (goarchFilter) {
+    targets = targets.filter(t => t.goarch === goarchFilter);
+  }
+
+  // Clean only the subfolders we are about to rebuild to preserve
+  // artifacts produced on other runners (merged later in CI)
+  for (const t of targets) {
+    try { rmSync(join(distRoot, t.folder), { recursive: true, force: true }); } catch { }
+  }
 
   for (const t of targets) {
     const outPath = join(distRoot, t.folder, 'kubiks');

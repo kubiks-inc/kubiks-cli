@@ -6,7 +6,7 @@ on:
       - 'v*.*.*'
 
 jobs:
-  build-and-publish:
+  build-linux:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -18,7 +18,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
           cache: 'npm'
 
       - name: Setup Go
@@ -36,12 +35,96 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Build package (prepack)
-        run: npm pack --silent
+      - name: Build Linux binaries (CGO enabled)
+        env:
+          ONLY_GOOS: linux
+          ONLY_GOARCH: amd64
+        run: node scripts/prepack.js
 
-      - name: Publish to npm
-        run: npm publish --access public
+      - name: Upload Linux dist-bin
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-linux
+          path: dist-bin/linux-*/**
+
+  build-macos:
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build macOS binaries (CGO enabled)
+        env:
+          ONLY_GOOS: darwin
+        run: node scripts/prepack.js
+
+      - name: Upload macOS dist-bin
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-darwin
+          path: dist-bin/darwin-*/**
+
+  publish:
+    needs: [build-linux, build-macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist-bin
+
+      - name: Merge dist-bin from artifacts
+        run: |
+          echo "Before merge:" && find dist-bin -maxdepth 4 -type f -print || true
+          mkdir -p dist-bin
+          for d in dist-bin/dist-linux/linux-* dist-bin/dist-darwin/darwin-*; do
+            if [ -d "$d" ]; then
+              echo "Merging $d"
+              cp -R "$d" dist-bin/
+            fi
+          done
+          echo "After merge:" && find dist-bin -maxdepth 2 -type f -print || true
+
+      - name: List downloaded artifacts
+        run: |
+          find dist-bin -type f -maxdepth 3 -print
+
+      - name: Setup Node for publish
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Verify package contents
+        run: |
+          ls -la
+          ls -la dist-bin || true
+
+      - name: Ensure bin shim is executable
+        run: chmod +x bin/kubiks.js
+
+      - name: Publish to npm (skip prepack)
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_IGNORE_SCRIPTS: true
+        run: npm publish --access public --ignore-scripts
 
 
