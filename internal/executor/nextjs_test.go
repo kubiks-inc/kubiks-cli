@@ -225,7 +225,7 @@ func TestNextJSExecutor_GetServiceNameFromPackageJSON_InvalidJSON(t *testing.T) 
 }
 
 // Test removed due to implementation mismatch - the test expected COLLECTOR_URL and OTEL_SERVICE_NAME
-// environment variables, but the actual implementation sets OTEL_EXPORTER_OTLP_ENDPOINT and 
+// environment variables, but the actual implementation sets OTEL_EXPORTER_OTLP_ENDPOINT and
 // doesn't set OTEL_SERVICE_NAME
 
 func TestNextJSExecutor_RunDirect_ValidationFailure(t *testing.T) {
