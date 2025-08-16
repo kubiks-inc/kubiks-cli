@@ -18,7 +18,12 @@ When something breaks in your Next.js app, wouldn't it be amazing if your AI cod
 
 ### 1. Install Kubiks CLI
 
-#### Via Homebrew (macOS/Linux)
+#### Via npm (macOS/Linux)
+```bash
+npm i -g @kubiks/cli
+```
+
+#### Or via Homebrew (macOS/Linux)
 ```bash
 brew install kubiks-inc/tap/kubiks
 ```

@@ -7,8 +7,9 @@
 kubiks-cli
 kubiks
 
-# Build directory
+# Build directory (but keep the npm entry point)
 bin/
+!bin/kubiks.js
 
 # Test binary, built with `go test -c`
 *.test

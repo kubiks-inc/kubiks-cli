@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const (
@@ -104,9 +105,18 @@ func (m *Manager) loadConfig() (map[string]interface{}, error) {
 
 	var config map[string]interface{}
 	if err := json.Unmarshal(data, &config); err != nil {
-		// If unmarshal fails, exit the whole app
-		fmt.Fprintf(os.Stderr, "Fatal error: failed to parse MCP config file: %v\n", err)
-		os.Exit(1)
+		// If unmarshal fails, backup the corrupted file and create a new clean config
+		backupPath := m.configPath + ".backup." + fmt.Sprintf("%d", time.Now().Unix())
+		if backupErr := os.WriteFile(backupPath, data, 0644); backupErr != nil {
+			// If backup fails, just log it but continue
+			fmt.Fprintf(os.Stderr, "Warning: failed to backup corrupted config file: %v\n", backupErr)
+		} else {
+			fmt.Fprintf(os.Stderr, "Warning: corrupted MCP config file backed up to: %s\n", backupPath)
+		}
+
+		// Return empty config instead of exiting
+		fmt.Fprintf(os.Stderr, "Warning: failed to parse MCP config file, using empty config: %v\n", err)
+		return make(map[string]interface{}), nil
 	}
 
 	// Initialize config if it's nil
