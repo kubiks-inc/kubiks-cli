@@ -18,7 +18,7 @@ function buildUI() {
 }
 
 function buildGoBinary(goos, goarch, outPath) {
-  const env = { ...process.env, GOOS: goos, GOARCH: goarch, CGO_ENABLED: '0' };
+  const env = { ...process.env, GOOS: goos, GOARCH: goarch };
   const main = join(__dirname, '..', 'main.go');
   const outDir = dirname(outPath);
   ensureDir(outDir);

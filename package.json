@@ -1,6 +1,6 @@
 {
   "name": "@kubiks/cli",
-  "version": "2.0.8",
+  "version": "2.0.9",
   "description": "Kubiks CLI - installable via npm, ships prebuilt binaries for macOS and Linux",
   "license": "Apache-2.0",
   "repository": {
