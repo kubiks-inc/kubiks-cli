@@ -4,7 +4,7 @@
 
 ## 🎬 Demo
 
-![Kubiks CLI Demo](images/kubiks-cli-demo.gif)
+![Kubiks CLI Demo](images/demo.gif)
 
 ## 🎯 What is Kubiks CLI?
 
