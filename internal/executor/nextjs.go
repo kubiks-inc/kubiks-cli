@@ -93,16 +93,12 @@ func (e *NextJSExecutor) createCommand() (*exec.Cmd, error) {
 	// Get current environment
 	env := os.Environ()
 
-	// Get service name from package.json
-	serviceName := e.getServiceNameFromPackageJSON()
-
 	collectorPort := "7432"
-	collectorURL := fmt.Sprintf("http://localhost:%s", collectorPort)
+	collectorURL := fmt.Sprintf("http://localhost:%s/v1/traces", collectorPort)
 
 	// Set OpenTelemetry environment variables
-	env = append(env, "COLLECTOR_URL="+collectorURL)
+	env = append(env, "OTEL_EXPORTER_OTLP_ENDPOINT="+collectorURL)
 	env = append(env, "OTEL_EXPORTER_OTLP_PROTOCOL=http/json")
-	env = append(env, "OTEL_SERVICE_NAME="+serviceName)
 
 	cmd.Env = env
 
