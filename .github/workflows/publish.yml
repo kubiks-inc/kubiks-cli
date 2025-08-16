@@ -103,6 +103,11 @@ jobs:
           done
           echo "After merge:" && find dist-bin -maxdepth 2 -type f -print || true
 
+      - name: Ensure binaries are executable
+        run: |
+          find dist-bin -type f -name kubiks -exec chmod 755 {} +
+          echo "Executable bits set on:" && find dist-bin -type f -name kubiks -exec ls -l {} +
+
       - name: List downloaded artifacts
         run: |
           find dist-bin -type f -maxdepth 3 -print
