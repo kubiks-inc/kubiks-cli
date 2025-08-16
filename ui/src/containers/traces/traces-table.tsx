@@ -148,61 +148,61 @@ export function TracesTable({
 
   return (
     <div className={cn('w-full max-h-full overflow-auto', className)}>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Timestamp</TableHead>
-            <TableHead>Name</TableHead>
-            <TableHead>Service</TableHead>
-            <TableHead>Duration</TableHead>
-            <TableHead>Status Codes</TableHead>
-            {/* <TableHead>Status</TableHead> */}
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {traces.map(trace => (
-            <TableRow
-              key={trace.traceId}
-              className={cn(
-                'cursor-pointer transition-colors',
-                onTraceClick && 'hover:bg-muted/50'
-              )}
-              onClick={() => onTraceClick?.(trace)}
-            >
-              <TableCell>
-                <span className="text-muted-foreground">
-                  {formatTimestamp(trace.timestamp)}
-                </span>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">{trace.name}</span>
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <span>{trace.service}</span>
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-1">
-                  <span>{formatDuration(trace.durationMs)}</span>
-                </div>
-              </TableCell>
-              <TableCell>
-                {trace.statusCode && (
-                  <code className="text-xs bg-muted px-2 py-1 rounded font-mono flex items-center gap-1">
-                    {getStatusText(trace.statusCode)}
-                  </code>
-                )}
-              </TableCell>
-              {/* <TableCell>{getStatusText(trace.status)}</TableCell> */}
+      {traces.length > 0 ? (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Timestamp</TableHead>
+              <TableHead>Name</TableHead>
+              <TableHead>Service</TableHead>
+              <TableHead>Duration</TableHead>
+              <TableHead>Status Codes</TableHead>
+              {/* <TableHead>Status</TableHead> */}
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-
-      {traces.length === 0 && (
+          </TableHeader>
+          <TableBody>
+            {traces.map(trace => (
+              <TableRow
+                key={trace.traceId}
+                className={cn(
+                  'cursor-pointer transition-colors',
+                  onTraceClick && 'hover:bg-muted/50'
+                )}
+                onClick={() => onTraceClick?.(trace)}
+              >
+                <TableCell>
+                  <span className="text-muted-foreground">
+                    {formatTimestamp(trace.timestamp)}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{trace.name}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <span>{trace.service}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    <span>{formatDuration(trace.durationMs)}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {trace.statusCode && (
+                    <code className="text-xs bg-muted px-2 py-1 rounded font-mono flex items-center gap-1">
+                      {getStatusText(trace.statusCode)}
+                    </code>
+                  )}
+                </TableCell>
+                {/* <TableCell>{getStatusText(trace.status)}</TableCell> */}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      ) : (
         <div className="flex items-center justify-center h-32 text-muted-foreground">
           <div className="flex flex-col items-center gap-3 py-12">
             <DatabaseIcon className="w-12 h-12 text-muted-foreground/50" />
