@@ -67,7 +67,7 @@ export const TracesContent = ({ timerange }: TracesContentProps) => {
                 <div className="flex-1">
                   <h3 className="text-sm font-semibold mb-1">Install package</h3>
                   <div className="bg-background border rounded p-2">
-                    <code className="font-mono text-xs text-foreground">npm i @kubiks/otel-nextjs</code>
+                    <code className="font-mono text-xs text-foreground">npm i @vercel/otel</code>
                   </div>
                 </div>
               </div>
@@ -80,15 +80,16 @@ export const TracesContent = ({ timerange }: TracesContentProps) => {
                   <h3 className="text-sm font-semibold mb-1">Create <code className="bg-background px-1 py-0.5 rounded text-xs font-mono">instrumentation.ts</code> in your Next.js app root directory</h3>
                   <div className="bg-background border rounded p-3 overflow-x-auto">
                     <pre className="font-mono text-xs text-foreground leading-tight">
-                      {`export async function register() {
-  if (process.env.NEXT_RUNTIME === 'nodejs') {
-    const { KubiksSDK } = await import('@kubiks/otel-nextjs');
-    const sdk = new KubiksSDK({
-      serverless: true,
-      service: "your-project-name",
-    });
-    sdk.start();
-  }
+                      {`// instrumentation.ts
+import { registerOTel, OTLPHttpJsonTraceExporter } from "@vercel/otel";
+
+export function register() {
+  registerOTel({
+    serviceName: "your-project-name",
+    traceExporter: new OTLPHttpJsonTraceExporter({
+      url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT,
+    }),
+  });
 }`}
                     </pre>
                   </div>
