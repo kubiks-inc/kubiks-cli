@@ -48,6 +48,24 @@ export function register() {
 }
 ```
 
+#### Enable experimental telemetry for AI SDK calls
+
+To capture AI SDK calls like `generateText`, `streamText`, and `generateObject`, you need to enable experimental telemetry in your AI SDK configuration:
+
+```typescript
+import { generateText } from 'ai';
+
+const result = await generateText({
+  model: 'openai/gpt-4',
+  prompt: 'Hello, world!',
+  experimental_telemetry: {
+    isEnabled: true,
+  },
+});
+```
+
+**Note**: This experimental telemetry feature must be enabled for each AI SDK call to ensure proper trace capture.
+
 ### 3. Start debugging like a pro
 
 ```bash
