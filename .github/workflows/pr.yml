@@ -17,6 +17,13 @@ jobs:
       with:
         go-version: '1.24'
     
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: ui/package-lock.json
+    
     - name: Cache Go modules
       uses: actions/cache@v3
       with:
@@ -29,6 +36,10 @@ jobs:
     
     - name: Install dependencies
       run: go mod download
+    
+    - name: Build UI
+      run: |
+        cd ui && npm ci && npm run build
     
     - name: Verify go mod tidy
       run: |
@@ -67,7 +78,7 @@ jobs:
       with:
         node-version: '18'
         cache: 'npm'
-        cache-dependency-path: instrumentation/package-lock.json
+        cache-dependency-path: ui/package-lock.json
     
     - name: Cache Go modules
       uses: actions/cache@v3
@@ -93,7 +104,4 @@ jobs:
           echo "Binary not found"
           exit 1
         fi
-        if [ ! -f ./bin/instrumentation.js ]; then
-          echo "Instrumentation file not found"
-          exit 1
-        fi
+        echo "Binary built successfully"

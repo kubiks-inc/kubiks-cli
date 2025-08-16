@@ -22,6 +22,13 @@ jobs:
       with:
         go-version: ${{ matrix.go-version }}
     
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: ui/package-lock.json
+    
     - name: Cache Go modules
       uses: actions/cache@v3
       with:
@@ -35,6 +42,10 @@ jobs:
     - name: Install dependencies
       run: |
         go mod download
+    
+    - name: Build UI
+      run: |
+        cd ui && npm ci && npm run build
     
     - name: Verify go mod tidy
       run: |
