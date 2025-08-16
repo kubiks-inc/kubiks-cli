@@ -1,0 +1,40 @@
+{
+  "name": "@kubiks/cli",
+  "version": "0.1.0",
+  "description": "Kubiks CLI - installable via npm, ships prebuilt binaries for macOS and Linux",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kubiks-inc/kubiks-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kubiks-inc/kubiks-cli/issues"
+  },
+  "homepage": "https://github.com/kubiks-inc/kubiks-cli#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "bin": {
+    "kubiks": "bin/kubiks.js"
+  },
+  "files": [
+    "bin/kubiks.js",
+    "dist-bin/",
+    "LICENSE",
+    "README.md"
+  ],
+  "scripts": {
+    "prepack": "node scripts/prepack.js"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "os": [
+    "darwin",
+    "linux"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ]
+}
