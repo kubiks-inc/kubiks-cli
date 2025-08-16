@@ -214,9 +214,11 @@ func (c *ServerCommand) startServer() error {
 
 	// Display startup information
 	fmt.Printf("🚀 Kubiks Servers starting...\n")
-	fmt.Printf("📡 OpenTelemetry server running on http://localhost:%s\n", c.otelPort)
-	fmt.Printf("🔗 MCP server running on http://localhost:%s/mcp/sse\n", c.mcpPort)
-	fmt.Printf("🖥️  UI available at http://localhost:%s\n", c.uiPort)
+	fmt.Printf("\n")
+	fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+	fmt.Printf("🖥️  WEB INTERFACE AVAILABLE AT: http://localhost:%s\n", c.uiPort)
+	fmt.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n")
+	fmt.Printf("\n")
 	fmt.Printf("💡 Press Ctrl+C to stop the servers\n\n")
 
 	// Start OTEL HTTP server

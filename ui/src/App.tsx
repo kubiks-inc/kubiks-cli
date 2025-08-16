@@ -7,7 +7,7 @@ export default function App() {
     <div className="min-h-svh p-6 font-sans">
       {/* Made with love by Kubiks */}
       <div className="absolute top-4 left-4 text-sm text-gray-600 hover:text-gray-800 transition-colors">
-        Made with love ❤️ by{' '}
+        Made with ❤️ by{' '}
         <a
           href="https://kubiks.ai"
           target="_blank"
@@ -19,9 +19,11 @@ export default function App() {
       </div>
 
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<TracesContent />} />
-        </Routes>
+        <div className="mt-4">
+          <Routes>
+            <Route path="/" element={<TracesContent />} />
+          </Routes>
+        </div>
       </BrowserRouter>
     </div>
   )
