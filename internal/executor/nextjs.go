@@ -3,7 +3,6 @@ package executor
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -40,11 +39,10 @@ func (e *NextJSExecutor) RunDirect() error {
 		return err
 	}
 
-	// Do not stream Next.js stdout/stderr to our console. Keep a clean screen.
-	// We still attach Stdin for potential interactive needs.
+	// Stream Next.js stdout/stderr to our console to show the original process output
 	cmd.Stdin = os.Stdin
-	cmd.Stdout = io.Discard
-	cmd.Stderr = io.Discard
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
 	// Set up signal handling for graceful shutdown
 	sigChan := make(chan os.Signal, 1)
@@ -62,12 +60,6 @@ func (e *NextJSExecutor) RunDirect() error {
 	fmt.Println()
 	fmt.Println(" Web Interface:")
 	fmt.Println("  • http://localhost:7431")
-	fmt.Println()
-	fmt.Println(" OTEL Collector:")
-	fmt.Println("  • http://localhost:7432")
-	fmt.Println()
-	fmt.Println(" MCP SSE Endpoint:")
-	fmt.Println("  • http://localhost:7433/mcp/sse")
 	fmt.Println()
 	fmt.Println(" Press Ctrl+C to stop.")
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
