@@ -3,10 +3,16 @@ package commands
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"log"
+	"net"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -14,10 +20,12 @@ import (
 	"github.com/kubiks-inc/kubiks-cli/internal/handlers"
 	"github.com/kubiks-inc/kubiks-cli/internal/mcp"
 	"github.com/kubiks-inc/kubiks-cli/internal/mcpconfig"
+	"github.com/kubiks-inc/kubiks-cli/internal/ui"
 )
 
 // ServerCommand handles server commands (OTEL, MCP, etc.)
 type ServerCommand struct {
+	uiPort     string
 	otelPort   string
 	mcpPort    string
 	mcpManager *mcpconfig.Manager
@@ -26,6 +34,7 @@ type ServerCommand struct {
 // NewServerCommand creates a new server command
 func NewServerCommand() *ServerCommand {
 	return &ServerCommand{
+		uiPort:     "7431",
 		otelPort:   "7432",
 		mcpPort:    "7433",
 		mcpManager: mcpconfig.NewManager(),
@@ -51,6 +60,14 @@ func (c *ServerCommand) startServer() error {
 	}
 	defer otelServer.Close()
 
+	// Clear database on each start
+	fmt.Println("🧹 Clearing database on startup...")
+	if err := otelServer.GetDB().ClearAll(); err != nil {
+		fmt.Printf("Warning: failed to clear database on startup: %v\n", err)
+	} else {
+		fmt.Println("✅ Database cleared successfully")
+	}
+
 	// Create MCP server with shared database
 	mcpServer, err := mcp.NewMCPServer(otelServer.GetDB(), c.mcpPort)
 	if err != nil {
@@ -66,11 +83,63 @@ func (c *ServerCommand) startServer() error {
 	otelMux.HandleFunc("/v1/metrics", otelServer.OTELMetricsHandler)
 	otelMux.HandleFunc("/v1/traces", otelServer.OTELTracesHandler)
 	otelMux.HandleFunc("/stats", otelServer.StatsHandler)
+	otelMux.HandleFunc("/api/spans", otelServer.TracesHandler)
+	otelMux.HandleFunc("/api/spans-all", otelServer.TracesAllHandler)
+	otelMux.HandleFunc("/api/logs-all", otelServer.LogsAllHandler)
+	otelMux.HandleFunc("/api/logs", otelServer.LogsByTraceHandler)
+	otelMux.HandleFunc("/clean", otelServer.CleanHandler)
 
 	// Create OTEL HTTP server
 	otelHTTPServer := &http.Server{
 		Addr:         ":" + c.otelPort,
 		Handler:      otelMux,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
+	}
+
+	// Create UI HTTP server to serve embedded React UI
+	distFS, err := ui.DistFS()
+	if err != nil {
+		return fmt.Errorf("failed to access embedded UI: %w", err)
+	}
+	uiMux := http.NewServeMux()
+	uiHTTPFS := http.FS(distFS)
+	uiFileServer := http.FileServer(uiHTTPFS)
+
+	// Reverse proxy to OTEL server for API routes
+	targetURL, _ := url.Parse("http://localhost:" + c.otelPort)
+	proxy := httputil.NewSingleHostReverseProxy(targetURL)
+	uiMux.Handle("/api/", proxy)
+	uiMux.Handle("/api/spans-all", proxy)
+	uiMux.Handle("/clean", proxy)
+	uiMux.Handle("/stats", proxy)
+
+	uiMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// Serve static assets and index normally
+		cleanPath := strings.TrimPrefix(r.URL.Path, "/")
+		if cleanPath == "" || strings.HasPrefix(cleanPath, "assets/") || cleanPath == "index.html" {
+			uiFileServer.ServeHTTP(w, r)
+			return
+		}
+		if f, err := uiHTTPFS.Open(cleanPath); err == nil {
+			_ = f.Close()
+			uiFileServer.ServeHTTP(w, r)
+			return
+		}
+		// SPA fallback: return embedded index.html
+		indexBytes, err := fs.ReadFile(distFS, "index.html")
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(indexBytes)
+	})
+	uiHTTPServer := &http.Server{
+		Addr:         ":" + c.uiPort,
+		Handler:      uiMux,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,
@@ -147,6 +216,7 @@ func (c *ServerCommand) startServer() error {
 	fmt.Printf("🚀 Kubiks Servers starting...\n")
 	fmt.Printf("📡 OpenTelemetry server running on http://localhost:%s\n", c.otelPort)
 	fmt.Printf("🔗 MCP server running on http://localhost:%s/mcp/sse\n", c.mcpPort)
+	fmt.Printf("🖥️  UI available at http://localhost:%s\n", c.uiPort)
 	fmt.Printf("💡 Press Ctrl+C to stop the servers\n\n")
 
 	// Start OTEL HTTP server
@@ -155,6 +225,16 @@ func (c *ServerCommand) startServer() error {
 		defer wg.Done()
 		if err := otelHTTPServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Printf("OTEL server failed: %v", err)
+			triggerShutdown()
+		}
+	}()
+
+	// Start UI HTTP server
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := uiHTTPServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Printf("UI server failed: %v", err)
 			triggerShutdown()
 		}
 	}()
@@ -169,6 +249,9 @@ func (c *ServerCommand) startServer() error {
 		}
 	}()
 
+	// Attempt to open the UI in the default browser
+	// Removed: Do not auto-open browser. We now only print the URL for the user.
+
 	// Wait for shutdown signal
 	<-shutdownChan
 
@@ -181,4 +264,20 @@ func (c *ServerCommand) startServer() error {
 	}
 
 	return nil
+}
+
+// GetOTELPort returns the selected OTEL port
+func (c *ServerCommand) GetOTELPort() string { return c.otelPort }
+
+// GetMCPPort returns the selected MCP port
+func (c *ServerCommand) GetMCPPort() string { return c.mcpPort }
+
+func findFreePort() string {
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return ""
+	}
+	defer l.Close()
+	addr := l.Addr().(*net.TCPAddr)
+	return strconv.Itoa(addr.Port)
 }

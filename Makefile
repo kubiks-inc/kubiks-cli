@@ -12,11 +12,9 @@ MAIN_FILE=main.go
 build:
 	@echo "Building $(BINARY_NAME)..."
 	@mkdir -p $(BIN_DIR)
+	@echo "Building UI..."
+	@cd ui && npm install --silent && npm run build
 	@go build -o $(BIN_DIR)/$(BINARY_NAME) $(MAIN_FILE)
-	@echo "Building instrumentation..."
-	@cd instrumentation && npm install --silent && npm run build
-	@echo "Copying instrumentation files..."
-	@cp instrumentation/dist/instrumentation.bundled.js $(BIN_DIR)/instrumentation.js
 	@echo "Built $(BINARY_NAME) in $(BIN_DIR)/"
 
 # Clean build artifacts
@@ -24,7 +22,6 @@ clean:
 	@echo "Cleaning build artifacts..."
 	@rm -rf $(BIN_DIR)
 	@rm -f $(BINARY_NAME)
-	@cd instrumentation && npm run clean 2>/dev/null || true
 	@echo "Clean complete"
 
 # Run the application
@@ -70,8 +67,8 @@ fmt:
 build-all: clean
 	@echo "Building for multiple platforms..."
 	@mkdir -p $(BIN_DIR)
-	@echo "Building instrumentation..."
-	@cd instrumentation && npm install --silent && npm run build
+	@echo "Building UI..."
+	@cd ui && npm install --silent && npm run build
 	@echo "Building for Linux (amd64)..."
 	@GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o $(BIN_DIR)/$(BINARY_NAME)-linux-amd64 $(MAIN_FILE)
 	@echo "Building for Linux (arm64)..."
@@ -82,19 +79,17 @@ build-all: clean
 	@GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -ldflags="-s -w" -o $(BIN_DIR)/$(BINARY_NAME)-darwin-arm64 $(MAIN_FILE)
 	@echo "Building for Windows (amd64)..."
 	@GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o $(BIN_DIR)/$(BINARY_NAME)-windows-amd64.exe $(MAIN_FILE)
-	@echo "Copying instrumentation files..."
-	@cp instrumentation/dist/instrumentation.bundled.js $(BIN_DIR)/instrumentation.js
 	@echo "Build complete for all platforms"
 
 # Create release archives
 release: build-all
 	@echo "Creating release archives..."
 	@mkdir -p dist
-	@cd $(BIN_DIR) && tar -czf ../dist/$(BINARY_NAME)-linux-amd64.tar.gz $(BINARY_NAME)-linux-amd64 instrumentation.js
-	@cd $(BIN_DIR) && tar -czf ../dist/$(BINARY_NAME)-linux-arm64.tar.gz $(BINARY_NAME)-linux-arm64 instrumentation.js
-	@cd $(BIN_DIR) && tar -czf ../dist/$(BINARY_NAME)-darwin-amd64.tar.gz $(BINARY_NAME)-darwin-amd64 instrumentation.js
-	@cd $(BIN_DIR) && tar -czf ../dist/$(BINARY_NAME)-darwin-arm64.tar.gz $(BINARY_NAME)-darwin-arm64 instrumentation.js
-	@cd $(BIN_DIR) && zip ../dist/$(BINARY_NAME)-windows-amd64.zip $(BINARY_NAME)-windows-amd64.exe instrumentation.js
+	@cd $(BIN_DIR) && tar -czf ../dist/$(BINARY_NAME)-linux-amd64.tar.gz $(BINARY_NAME)-linux-amd64
+	@cd $(BIN_DIR) && tar -czf ../dist/$(BINARY_NAME)-linux-arm64.tar.gz $(BINARY_NAME)-linux-arm64
+	@cd $(BIN_DIR) && tar -czf ../dist/$(BINARY_NAME)-darwin-amd64.tar.gz $(BINARY_NAME)-darwin-amd64
+	@cd $(BIN_DIR) && tar -czf ../dist/$(BINARY_NAME)-darwin-arm64.tar.gz $(BINARY_NAME)-darwin-arm64
+	@zip ../dist/$(BINARY_NAME)-windows-amd64.zip $(BINARY_NAME)-windows-amd64.exe
 	@echo "Release archives created in dist/"
 
 # Help target

@@ -59,7 +59,7 @@ func TestNewDevCommand(t *testing.T) {
 		t.Error("NewDevCommand() detector is not a NextJSDetector")
 	}
 
-	// Note: executor might be nil if instrumentation file doesn't exist
+	// Note: executor might be nil if initialization fails
 	// This is expected behavior and logged as a warning
 }
 
@@ -215,11 +215,7 @@ func TestDevCommand_RunDirect_Success_Mock(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDir)
 
-	// Create instrumentation file
-	instrumentationPath := filepath.Join(tempDir, "instrumentation.js")
-	if err := os.WriteFile(instrumentationPath, []byte("// test"), 0644); err != nil {
-		t.Fatalf("Failed to create instrumentation file: %v", err)
-	}
+	// No instrumentation file needed anymore
 
 	// Create mock executor that doesn't actually run anything
 	mockExecutor := &executor.NextJSExecutor{}
@@ -316,7 +312,7 @@ func TestDevCommand_GetComponents(t *testing.T) {
 		t.Error("Expected detector to be initialized")
 	}
 
-	// executor might be nil if instrumentation file is missing, that's ok
+	// executor might be nil if initialization fails, that's ok
 
 	// Test detector interface
 	projectType := cmd.detector.GetProjectType()

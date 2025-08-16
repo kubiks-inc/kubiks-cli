@@ -50,7 +50,7 @@ jobs:
       with:
         node-version: '18'
         cache: 'npm'
-        cache-dependency-path: instrumentation/package-lock.json
+        cache-dependency-path: ui/package-lock.json
     
     - name: Get version
       id: version
@@ -64,21 +64,10 @@ jobs:
     - name: Install dependencies
       run: |
         go mod download
-        cd instrumentation && npm install
     
-    - name: Build instrumentation
+    - name: Build UI
       run: |
-        cd instrumentation && npm run build
-        echo "Instrumentation build completed. Contents of dist:"
-        ls -la dist/
-        if [ ! -f "dist/instrumentation.bundled.js" ]; then
-          echo "ERROR: instrumentation.bundled.js not found!"
-          exit 1
-        fi
-        
-        # Copy instrumentation file to embed location
-        cp dist/instrumentation.bundled.js ../internal/instrumentation/instrumentation.bundled.js
-        echo "Copied instrumentation file for embedding"
+        cd ui && npm ci && npm run build
     
     - name: Build binary
       env:
@@ -87,10 +76,10 @@ jobs:
         mkdir -p dist
         binary_name="kubiks${{ matrix.ext }}"
         
-        # Build binary with embedded instrumentation
+        # Build binary
         go build -ldflags="-s -w -X main.version=${{ steps.version.outputs.version }}" -o dist/$binary_name .
         
-        # Create archive with just the binary (instrumentation is now embedded)
+        # Create archive with just the binary
         cd dist
         if [ "${{ matrix.goos }}" = "windows" ]; then
           zip kubiks-${{ steps.version.outputs.version }}-${{ matrix.os }}-${{ matrix.goarch }}.zip $binary_name
