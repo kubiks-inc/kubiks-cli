@@ -1,13 +1,19 @@
 package executor
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"syscall"
+	"time"
+
+	"github.com/kubiks-inc/kubiks-cli/internal/database"
+	"github.com/kubiks-inc/kubiks-cli/pkg/types"
 )
 
 // NextJSExecutor handles execution of Next.js applications with OpenTelemetry environment configuration
@@ -39,10 +45,23 @@ func (e *NextJSExecutor) RunDirect() error {
 		return err
 	}
 
-	// Stream Next.js stdout/stderr to our console to show the original process output
+	// Intercept stdout/stderr so we can mirror to console and store raw lines in DB
 	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("failed to get stdout pipe: %w", err)
+	}
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("failed to get stderr pipe: %w", err)
+	}
+
+	// Open the shared database to store raw log lines
+	db, err := database.NewDB(types.GetDatabasePath())
+	if err != nil {
+		return fmt.Errorf("failed to open database: %w", err)
+	}
+	defer db.Close()
 
 	// Set up signal handling for graceful shutdown
 	sigChan := make(chan os.Signal, 1)
@@ -72,6 +91,47 @@ func (e *NextJSExecutor) RunDirect() error {
 		// Kill the entire process group to ensure all child processes are terminated
 		if err := killProcessGroup(cmd.Process.Pid); err != nil {
 			fmt.Printf("Warning: failed to kill process group: %v\n", err)
+		}
+	}()
+
+	// Start goroutines to read and persist stdout/stderr lines
+	writeRawLog := func(line, stream string) {
+		// Mirror to console first
+		if stream == "STDERR" {
+			fmt.Fprintln(os.Stderr, line)
+		} else {
+			fmt.Fprintln(os.Stdout, line)
+		}
+
+		// Build a minimal JSON log record without parsing the line contents
+		logRecord := map[string]interface{}{
+			"timeUnixNano":       strconv.FormatInt(time.Now().UnixNano(), 10),
+			"severityText":       stream,
+			"severityNumber":     0,
+			"body":               line,
+			"attributes":         map[string]interface{}{},
+			"resourceAttributes": map[string]interface{}{"service.name": serviceName},
+		}
+		bytes, mErr := json.Marshal(logRecord)
+		if mErr != nil {
+			return
+		}
+		// Store with unknown trace ID; service name will be extracted from resourceAttributes
+		_, _ = db.InsertLog("unknown", string(bytes))
+	}
+
+	go func() {
+		scanner := bufio.NewScanner(stdoutPipe)
+		scanner.Buffer(make([]byte, 0, 1024), 1024*1024)
+		for scanner.Scan() {
+			writeRawLog(scanner.Text(), "STDOUT")
+		}
+	}()
+	go func() {
+		scanner := bufio.NewScanner(stderrPipe)
+		scanner.Buffer(make([]byte, 0, 1024), 1024*1024)
+		for scanner.Scan() {
+			writeRawLog(scanner.Text(), "STDERR")
 		}
 	}()
 
