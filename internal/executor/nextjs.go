@@ -178,6 +178,40 @@ func (e *NextJSExecutor) createCommand() (*exec.Cmd, error) {
 	env = append(env, "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT="+endpoint)
 	env = append(env, "OTEL_EXPORTER_OTLP_PROTOCOL="+protocol)
 
+	// Ensure service name is set for traces if not provided by the user
+	// Prefer existing OS env or .env values; otherwise use package.json name
+	if _, ok := os.LookupEnv("OTEL_SERVICE_NAME"); !ok {
+		vals := e.loadDotEnvFiles([]string{".env.local", ".env"})
+		if _, exists := vals["OTEL_SERVICE_NAME"]; !exists {
+			serviceName := e.getServiceNameFromPackageJSON()
+			env = append(env, "OTEL_SERVICE_NAME="+serviceName)
+		}
+	}
+
+	// Also ensure OTEL_RESOURCE_ATTRIBUTES has service.name, which some SDKs honor
+	{
+		vals := e.loadDotEnvFiles([]string{".env.local", ".env"})
+		osVal, hasOS := os.LookupEnv("OTEL_RESOURCE_ATTRIBUTES")
+		dotVal := vals["OTEL_RESOURCE_ATTRIBUTES"]
+		existing := osVal
+		if !hasOS {
+			existing = dotVal
+		}
+		if !strings.Contains(existing, "service.name=") {
+			serviceName := e.getServiceNameFromPackageJSON()
+			env = append(env, "OTEL_RESOURCE_ATTRIBUTES=service.name="+serviceName)
+		}
+	}
+
+	// Best-effort: set Vercel-specific env if absent, to influence @vercel/otel's default name
+	if _, ok := os.LookupEnv("VERCEL_OTEL_SERVICE_NAME"); !ok {
+		vals := e.loadDotEnvFiles([]string{".env.local", ".env"})
+		if _, exists := vals["VERCEL_OTEL_SERVICE_NAME"]; !exists {
+			serviceName := e.getServiceNameFromPackageJSON()
+			env = append(env, "VERCEL_OTEL_SERVICE_NAME="+serviceName)
+		}
+	}
+
 	cmd.Env = env
 
 	// Set working directory to current directory
