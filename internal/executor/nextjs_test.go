@@ -2,6 +2,7 @@ package executor
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -255,4 +256,111 @@ func TestNextJSExecutor_RunDirect_ValidationFailure(t *testing.T) {
 	if !strings.Contains(err.Error(), "package.json") {
 		t.Errorf("Expected package.json error, got: %v", err)
 	}
+}
+
+func writeDotEnv(t *testing.T, lines []string) {
+	t.Helper()
+	content := strings.Join(lines, "\n")
+	if err := os.WriteFile(".env", []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write .env: %v", err)
+	}
+}
+
+func TestResolveExporterConfig_BaseAndTracesDerivation(t *testing.T) {
+	_, cleanup := setupTestEnvironment(t)
+	defer cleanup()
+
+	// minimal package.json and node_modules so executor methods can run
+	pkg := map[string]any{"name": "demo", "dependencies": map[string]any{"next": "15.0.0"}}
+	raw, _ := json.Marshal(pkg)
+	_ = os.WriteFile("package.json", raw, 0644)
+	_ = os.MkdirAll("node_modules", 0755)
+
+	// Base only => traces derived to /v1/traces
+	writeDotEnv(t, []string{
+		"OTEL_EXPORTER_OTLP_ENDPOINT=http://example:4318",
+	})
+	ex := &NextJSExecutor{}
+	base, traces, protocol := ex.resolveExporterConfig()
+	if base != "http://example:4318" {
+		t.Fatalf("base mismatch: %s", base)
+	}
+	if traces != "http://example:4318/v1/traces" {
+		t.Fatalf("traces derived mismatch: %s", traces)
+	}
+	if protocol == "" {
+		t.Fatalf("protocol should have defaulted")
+	}
+
+	// Override traces
+	writeDotEnv(t, []string{
+		"OTEL_EXPORTER_OTLP_ENDPOINT=http://example:4318",
+		"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://override:4318",
+	})
+	base, traces, _ = ex.resolveExporterConfig()
+	if traces != "http://override:4318/v1/traces" {
+		t.Fatalf("traces override normalization failed: %s", traces)
+	}
+}
+
+func TestResolveLogsForwardingConfig(t *testing.T) {
+	_, cleanup := setupTestEnvironment(t)
+	defer cleanup()
+	_ = os.WriteFile("package.json", []byte(`{"name":"demo"}`), 0644)
+	_ = os.MkdirAll("node_modules", 0755)
+
+	ex := &NextJSExecutor{}
+
+	// From base with http/json
+	writeDotEnv(t, []string{
+		"OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318",
+		"OTEL_EXPORTER_OTLP_PROTOCOL=http/json",
+	})
+	cfg := ex.resolveLogsForwardingConfig("http://collector:4318", "http://collector:4318/v1/traces")
+	if !cfg.enabled || cfg.endpoint != "http://collector:4318/v1/logs" {
+		t.Fatalf("logs cfg from base failed: %+v", cfg)
+	}
+
+	// Explicit logs endpoint wins
+	writeDotEnv(t, []string{
+		"OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=http://other:4318",
+	})
+	cfg = ex.resolveLogsForwardingConfig("http://collector:4318", "http://collector:4318/v1/traces")
+	if !cfg.enabled || cfg.endpoint != "http://other:4318/v1/logs" {
+		t.Fatalf("explicit logs endpoint not normalized: %+v", cfg)
+	}
+
+	// Local traces should disable by default
+	writeDotEnv(t, []string{})
+	cfg = ex.resolveLogsForwardingConfig("http://collector:4318", "http://localhost:7432/v1/traces")
+	if cfg.enabled {
+		t.Fatalf("logs forwarding should be disabled for local traces endpoint")
+	}
+}
+
+func TestCreateCommand_SetsLocalTracesAndPreload(t *testing.T) {
+	_, cleanup := setupTestEnvironment(t)
+	defer cleanup()
+	_ = os.WriteFile("package.json", []byte(`{"name":"demo"}`), 0644)
+	_ = os.MkdirAll("node_modules", 0755)
+
+	// Enable single-line JSON and remote base
+	writeDotEnv(t, []string{
+		"OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318",
+		"KUBIKS_LOGS_SINGLE_LINE_JSON=true",
+	})
+	ex := &NextJSExecutor{}
+	cmd, err := ex.createCommand()
+	if err != nil {
+		t.Fatalf("createCommand error: %v", err)
+	}
+	env := strings.Join(cmd.Env, "\n")
+	if !strings.Contains(env, "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://localhost:7432/v1/traces") {
+		t.Fatalf("local traces endpoint not set in env")
+	}
+	if !strings.Contains(env, "NODE_OPTIONS=") || !strings.Contains(env, "--require") || !strings.Contains(env, ".kubiks/console-json-preload.js") {
+		t.Fatalf("NODE_OPTIONS preload not set: %s", env)
+	}
+	// Print env for easier debugging when failing
+	_ = fmt.Sprintf("%d", len(env))
 }

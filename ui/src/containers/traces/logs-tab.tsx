@@ -35,6 +35,47 @@ function bodyToString(body: any): string {
   return String(body);
 }
 
+// Parse body to object, supporting both OTEL AnyValue and plain JSON string bodies
+function parseBodyObject(body: any): any | null {
+  if (!body) return null;
+  // If body is a plain JSON string
+  if (typeof body === 'string') {
+    const s = body.trim();
+    if (s.startsWith('{') || s.startsWith('[')) {
+      try { return JSON.parse(s); } catch { return null; }
+    }
+    return null;
+  }
+  // If body is an OTEL AnyValue object with stringValue
+  if (typeof body === 'object') {
+    const v = (body as any).stringValue ?? (body as any).intValue ?? (body as any).doubleValue ?? (body as any).boolValue ?? (body as any).bytesValue ?? body;
+    if (typeof v === 'string') {
+      const s = v.trim();
+      if (s.startsWith('{') || s.startsWith('[')) {
+        try { return JSON.parse(s); } catch { return null; }
+      }
+    }
+  }
+  return null;
+}
+
+function deriveSeverity(log: LogRecord): string {
+  // Priority: attributes.log.level -> parsed body.level/severity -> severityText
+  const attrs = log.attributes || {};
+  const fromAttrs = (attrs['log.level'] || attrs['level']) as string | undefined;
+  if (fromAttrs) return String(fromAttrs).toUpperCase();
+  const parsed = parseBodyObject(log.body);
+  const fromBody = (parsed?.level || parsed?.severity) as string | undefined;
+  if (fromBody) return String(fromBody).toUpperCase();
+  return String(log.severityText || '').toUpperCase();
+}
+
+function extractMessage(log: LogRecord): string {
+  const parsed = parseBodyObject(log.body);
+  if (parsed && typeof parsed.message === 'string') return parsed.message;
+  return bodyToString(log.body);
+}
+
 export function LogsTable() {
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
   const { data, error, isLoading } = useSWR<LogRecord[]>(
@@ -85,7 +126,8 @@ export function LogsTable() {
             </TableHeader>
             <TableBody>
               {logs.map((log, idx) => {
-                const fullMessage = bodyToString(log.body);
+                const severity = deriveSeverity(log);
+                const fullMessage = extractMessage(log);
                 const isExpanded = expanded.has(idx);
                 return (
                   <Fragment key={idx}>
@@ -95,7 +137,7 @@ export function LogsTable() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <span className={`text-xs px-2 py-1 rounded font-mono ${severityClasses(log.severityText)}`}>{String(log.severityText ?? '')}</span>
+                          <span className={`text-xs px-2 py-1 rounded font-mono ${severityClasses(severity)}`}>{severity}</span>
                         </div>
                       </TableCell>
                       <TableCell>
