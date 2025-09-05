@@ -425,6 +425,62 @@ func TestServer_StatsHandler_DatabaseError(t *testing.T) {
 	}
 }
 
+// Mirror helpers
+func TestNormalizeOTLPEndpoint(t *testing.T) {
+	cases := []struct{ in, signal, want string }{
+		{"http://host:4318", "traces", "http://host:4318/v1/traces"},
+		{"http://host:4318/", "logs", "http://host:4318/v1/logs"},
+		{"http://host:4318/v1", "logs", "http://host:4318/v1/logs"},
+		{"http://host:4318/v1/", "traces", "http://host:4318/v1/traces"},
+		{"http://host:4318/v1/custom", "traces", "http://host:4318/v1/custom/traces"},
+	}
+	for _, c := range cases {
+		if got := normalizeOTLPEndpoint(c.in, c.signal); got != c.want {
+			t.Fatalf("normalizeOTLPEndpoint(%s,%s)=%s want %s", c.in, c.signal, got, c.want)
+		}
+	}
+}
+
+func TestIsLocalOTELURL(t *testing.T) {
+	if !isLocalOTELURL("http://localhost:7432/v1/traces", "7432") {
+		t.Fatalf("expected local url to be detected")
+	}
+	if isLocalOTELURL("http://remote:4318/v1/traces", "7432") {
+		t.Fatalf("did not expect remote url to be considered local")
+	}
+}
+
+func TestForwardOTLPJSON(t *testing.T) {
+	// Setup a local HTTP server to validate forwarding
+	received := make(chan *http.Request, 1)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		received <- r
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer ts.Close()
+
+	s := &Server{port: "7432"}
+	payload := []byte(`{"hello":"world"}`)
+	headers := "Authorization=Bearer token-x, X-Test=1"
+	// exercise
+	s.forwardOTLPJSON(ts.URL, payload, headers)
+
+	select {
+	case req := <-received:
+		if ct := req.Header.Get("Content-Type"); ct != "application/json" {
+			t.Fatalf("content-type mismatch: %s", ct)
+		}
+		if req.Header.Get("Authorization") != "Bearer token-x" {
+			t.Fatalf("auth header missing")
+		}
+		if req.Header.Get("X-Test") != "1" {
+			t.Fatalf("x-test header missing")
+		}
+	default:
+		t.Fatalf("no request received")
+	}
+}
+
 // badReader simulates an io.Reader that always returns an error
 type badReader struct{}
 

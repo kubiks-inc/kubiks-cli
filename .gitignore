@@ -60,3 +60,5 @@ kubiks-data/
 # Instrumentation build artifacts
 node_modules/
 dist/
+
+coverage.html
