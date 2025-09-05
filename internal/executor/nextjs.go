@@ -4,11 +4,13 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -34,11 +36,26 @@ func (e *NextJSExecutor) RunDirect() error {
 	}
 
 	serviceName := e.getServiceNameFromPackageJSON()
-	collectorPort := "7432"
 	fmt.Println("🚀 Starting Next.js development server with OpenTelemetry environment configuration...")
 	fmt.Printf("🏷️  Service name: %s\n", serviceName)
-	fmt.Printf("🔗 OTEL Endpoint: http://localhost:%s\n", collectorPort)
-	fmt.Println("📡 OTEL Protocol: http/json")
+
+	// Resolve exporter endpoint and protocol from project .env files
+	resolvedEndpoint, resolvedProtocol := e.resolveExporterConfig()
+	fmt.Printf("🔗 OTEL Endpoint: %s\n", resolvedEndpoint)
+	fmt.Printf("📡 OTEL Protocol: %s\n", resolvedProtocol)
+
+	// Warn if using an external collector (non-localhost)
+	if u, err := url.Parse(resolvedEndpoint); err == nil {
+		host := u.Hostname()
+		if host != "localhost" && host != "127.0.0.1" && host != "" {
+			fmt.Println("⚠️  Using external collector; local Kubiks UI will not display remote spans unless the data is also ingested locally.")
+		}
+	}
+
+	// Warn if endpoint likely missing OTLP HTTP path
+	if !strings.Contains(resolvedEndpoint, "/v1/") {
+		fmt.Println("⚠️  The OTEL endpoint may be missing the OTLP HTTP path. Example: http://host:4318/v1/traces")
+	}
 
 	cmd, err := e.createCommand()
 	if err != nil {
@@ -153,12 +170,13 @@ func (e *NextJSExecutor) createCommand() (*exec.Cmd, error) {
 	// Get current environment
 	env := os.Environ()
 
-	collectorPort := "7432"
-	collectorURL := fmt.Sprintf("http://localhost:%s/v1/traces", collectorPort)
+	// Resolve exporter configuration (from .env files) and set env vars
+	endpoint, protocol := e.resolveExporterConfig()
 
 	// Set OpenTelemetry environment variables
-	env = append(env, "OTEL_EXPORTER_OTLP_ENDPOINT="+collectorURL)
-	env = append(env, "OTEL_EXPORTER_OTLP_PROTOCOL=http/json")
+	env = append(env, "OTEL_EXPORTER_OTLP_ENDPOINT="+endpoint)
+	env = append(env, "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT="+endpoint)
+	env = append(env, "OTEL_EXPORTER_OTLP_PROTOCOL="+protocol)
 
 	cmd.Env = env
 
@@ -223,4 +241,74 @@ func (e *NextJSExecutor) getServiceNameFromPackageJSON() string {
 
 	fmt.Printf("📦 Using service name from package.json: %s\n", pkg.Name)
 	return pkg.Name
+}
+
+// resolveExporterConfig returns the OTLP exporter endpoint and protocol.
+// Precedence (first match wins): .env.local, then .env. Fallbacks to local collector.
+func (e *NextJSExecutor) resolveExporterConfig() (string, string) {
+	defaultEndpoint := "http://localhost:7432/v1/traces"
+	defaultProtocol := "http/json"
+
+	vals := e.loadDotEnvFiles([]string{".env.local", ".env"})
+
+	endpoint := vals["OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"]
+	if endpoint == "" {
+		endpoint = vals["OTEL_EXPORTER_OTLP_ENDPOINT"]
+	}
+	if endpoint == "" {
+		endpoint = defaultEndpoint
+	}
+
+	protocol := vals["OTEL_EXPORTER_OTLP_PROTOCOL"]
+	if protocol == "" {
+		protocol = defaultProtocol
+	}
+
+	return endpoint, protocol
+}
+
+// loadDotEnvFiles parses simple KEY=VALUE lines from the provided files in order.
+// Earlier files take precedence (do not get overridden by later files).
+func (e *NextJSExecutor) loadDotEnvFiles(files []string) map[string]string {
+	values := make(map[string]string)
+
+	setIfEmpty := func(k, v string) {
+		if k == "" || v == "" {
+			return
+		}
+		if _, exists := values[k]; !exists {
+			values[k] = v
+		}
+	}
+
+	for _, name := range files {
+		data, err := os.ReadFile(filepath.Join(".", name))
+		if err != nil {
+			continue
+		}
+		lines := strings.Split(string(data), "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			if strings.HasPrefix(line, "export ") {
+				line = strings.TrimSpace(strings.TrimPrefix(line, "export "))
+			}
+			idx := strings.Index(line, "=")
+			if idx <= 0 {
+				continue
+			}
+			k := strings.TrimSpace(line[:idx])
+			v := strings.TrimSpace(line[idx+1:])
+			if len(v) >= 2 {
+				if (strings.HasPrefix(v, "\"") && strings.HasSuffix(v, "\"")) || (strings.HasPrefix(v, "'") && strings.HasSuffix(v, "'")) {
+					v = v[1 : len(v)-1]
+				}
+			}
+			setIfEmpty(k, v)
+		}
+	}
+
+	return values
 }
