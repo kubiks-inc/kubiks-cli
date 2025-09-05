@@ -1,11 +1,16 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/kubiks-inc/kubiks-cli/internal/database"
 	"github.com/kubiks-inc/kubiks-cli/pkg/types"
@@ -15,6 +20,11 @@ import (
 type Server struct {
 	db   *database.DB
 	port string
+	// mirroring config
+	mirrorEnabled    bool
+	mirrorTracesURL  string
+	mirrorLogsURL    string
+	mirrorHeadersRaw string
 }
 
 // NewServer creates a new server instance
@@ -25,10 +35,28 @@ func NewServer(port string) (*Server, error) {
 		return nil, fmt.Errorf("failed to initialize database: %w", err)
 	}
 
-	return &Server{
+	s := &Server{
 		db:   db,
 		port: port,
-	}, nil
+	}
+
+	// Resolve mirroring configuration from .env.local/.env
+	base, tracesURL, logsURL, headers := resolveMirrorConfig()
+	// Enable mirroring if any remote target is non-empty and not pointing to our own OTEL port
+	if tracesURL != "" || logsURL != "" {
+		// avoid self-loop to local server
+		if !isLocalOTELURL(tracesURL, port) || !isLocalOTELURL(logsURL, port) {
+			s.mirrorEnabled = true
+			s.mirrorTracesURL = tracesURL
+			s.mirrorLogsURL = logsURL
+			s.mirrorHeadersRaw = headers
+			if s.mirrorTracesURL != "" || s.mirrorLogsURL != "" {
+				fmt.Printf("🔁 OTLP mirroring enabled to base %s (traces=%s logs=%s)\n", base, s.mirrorTracesURL, s.mirrorLogsURL)
+			}
+		}
+	}
+
+	return s, nil
 }
 
 // GetDB returns the database instance
@@ -91,6 +119,11 @@ func (s *Server) OTELLogsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, `{"partialSuccess":{},"inserted":%d}`, count)
+
+	// Mirror to remote logs endpoint if enabled
+	if s.mirrorEnabled && s.mirrorLogsURL != "" && !isLocalOTELURL(s.mirrorLogsURL, s.port) {
+		go s.forwardOTLPJSON(s.mirrorLogsURL, body, s.mirrorHeadersRaw)
+	}
 }
 
 // OTELMetricsHandler handles OTEL metrics endpoint
@@ -145,6 +178,11 @@ func (s *Server) OTELTracesHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, `{"partialSuccess":{},"inserted":%d}`, count)
+
+	// Mirror to remote traces endpoint if enabled
+	if s.mirrorEnabled && s.mirrorTracesURL != "" && !isLocalOTELURL(s.mirrorTracesURL, s.port) {
+		go s.forwardOTLPJSON(s.mirrorTracesURL, body, s.mirrorHeadersRaw)
+	}
 }
 
 // StatsHandler returns database statistics
@@ -163,7 +201,7 @@ func (s *Server) StatsHandler(w http.ResponseWriter, r *http.Request) {
 		"metrics_count": %d,
 		"traces_count": %d,
 		"database_path": "%s"
-	}`, stats["logs_count"], stats["metrics_count"], stats["traces_count"], types.GetDatabasePath())
+		}`, stats["logs_count"], stats["metrics_count"], stats["traces_count"], types.GetDatabasePath())
 }
 
 // CleanHandler deletes all data
@@ -375,4 +413,136 @@ func (s *Server) LogsByTraceHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(results)
+}
+
+// forwardOTLPJSON forwards an OTLP HTTP JSON payload to the given URL with optional headers
+func (s *Server) forwardOTLPJSON(targetURL string, payload []byte, headersRaw string) {
+	if targetURL == "" {
+		return
+	}
+	req, err := http.NewRequest("POST", targetURL, bytes.NewReader(payload))
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	// headers string format: key=value,key2=value2
+	for _, kv := range strings.Split(headersRaw, ",") {
+		kv = strings.TrimSpace(kv)
+		if kv == "" {
+			continue
+		}
+		parts := strings.SplitN(kv, "=", 2)
+		if len(parts) == 2 {
+			req.Header.Set(parts[0], parts[1])
+		}
+	}
+	client := &http.Client{}
+	_, _ = client.Do(req)
+}
+
+// resolveMirrorConfig loads .env files to determine remote OTLP endpoints for mirroring
+// Precedence: .env.local then .env
+func resolveMirrorConfig() (base string, tracesURL string, logsURL string, headers string) {
+	vals := loadDotEnvFiles([]string{".env.local", ".env"})
+	base = vals["OTEL_EXPORTER_OTLP_ENDPOINT"]
+	if base == "" {
+		base = ""
+	}
+	tracesURL = vals["OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"]
+	logsURL = vals["OTEL_EXPORTER_OTLP_LOGS_ENDPOINT"]
+	if tracesURL == "" && base != "" {
+		tracesURL = normalizeOTLPEndpoint(base, "traces")
+	}
+	if logsURL == "" && base != "" {
+		logsURL = normalizeOTLPEndpoint(base, "logs")
+	}
+	headers = vals["OTEL_EXPORTER_OTLP_HEADERS"]
+	return
+}
+
+// isLocalOTELURL returns true if the URL points to this server's OTEL port
+func isLocalOTELURL(raw string, otelPort string) bool {
+	if raw == "" {
+		return false
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return false
+	}
+	host := u.Host
+	return strings.Contains(host, ":"+otelPort)
+}
+
+// normalizeOTLPEndpoint appends /v1/<signal> when given a base URL
+func normalizeOTLPEndpoint(raw string, signal string) string {
+	if raw == "" {
+		return ""
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return raw
+	}
+	p := u.Path
+	if strings.HasSuffix(p, "/v1/"+signal) {
+		return raw
+	}
+	if p == "" || p == "/" {
+		u.Path = "/v1/" + signal
+		return u.String()
+	}
+	if p == "/v1" || p == "/v1/" {
+		u.Path = "/v1/" + signal
+		return u.String()
+	}
+	if strings.HasPrefix(p, "/v1/") && !strings.Contains(p, "/v1/traces") && !strings.Contains(p, "/v1/logs") {
+		if strings.HasSuffix(p, "/") {
+			u.Path = p + signal
+		} else {
+			u.Path = p + "/" + signal
+		}
+		return u.String()
+	}
+	return raw
+}
+
+// loadDotEnvFiles is a lightweight parser for KEY=VALUE env files
+func loadDotEnvFiles(files []string) map[string]string {
+	values := make(map[string]string)
+	setIfEmpty := func(k, v string) {
+		if k == "" || v == "" {
+			return
+		}
+		if _, exists := values[k]; !exists {
+			values[k] = v
+		}
+	}
+	for _, name := range files {
+		data, err := os.ReadFile(filepath.Join(".", name))
+		if err != nil {
+			continue
+		}
+		lines := strings.Split(string(data), "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			if strings.HasPrefix(line, "export ") {
+				line = strings.TrimSpace(strings.TrimPrefix(line, "export "))
+			}
+			idx := strings.Index(line, "=")
+			if idx <= 0 {
+				continue
+			}
+			k := strings.TrimSpace(line[:idx])
+			v := strings.TrimSpace(line[idx+1:])
+			if len(v) >= 2 {
+				if (strings.HasPrefix(v, "\"") && strings.HasSuffix(v, "\"")) || (strings.HasPrefix(v, "'")) && strings.HasSuffix(v, "'") {
+					v = v[1 : len(v)-1]
+				}
+			}
+			setIfEmpty(k, v)
+		}
+	}
+	return values
 }
